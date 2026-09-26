@@ -50,6 +50,7 @@ class Boar(Boss):
         b.pits = 0
         b.charges = 0
         b.broken: list[Cell] = []          # stumps waiting to grow back
+        b.last_stumps: list[Cell] = []     # stumps of the latest crash (a hit uses them up)
         b.crumbling: list[Cell] = []       # stomp tiles we made unstable
         b.stomp_cells: tuple[Cell, ...] = ()
         b.stun_kind = ""
@@ -231,6 +232,7 @@ class Boar(Boss):
         self.pos = (float(cell[0]), float(cell[1]))
         self.state = STUN
         if stumps:
+            self.last_stumps = list(stumps)
             for s in stumps:
                 world.tiles.set_kind(s, SOLID)
                 self.broken.append(s)
@@ -246,7 +248,8 @@ class Boar(Boss):
     def take_hit(self, world: "World") -> bool:
         if not super().take_hit(world):
             return False
-        self.broken.clear()                  # this stump did its job
+        # this crash's stump did its job; older broken ones still grow back
+        self.broken = [c for c in self.broken if c not in self.last_stumps]
         if not self.defeated:
             self.stunned = min(self.stunned, 0.8)
         return True

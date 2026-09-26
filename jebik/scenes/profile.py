@@ -3,9 +3,10 @@ from __future__ import annotations
 
 import pygame as pg
 
-from .. import config, i18n
+from .. import config, i18n, progression
 from ..art.chars import frog_front_sprite
-from ..art.common import draw_text, star_sprite
+from ..art.common import draw_text, fit_size, star_sprite
+from ..game.rules import EZZZ
 from ..save import MAX_NAME_LEN
 from ..ui.widgets import Button, TextInput
 from .common import W, MenuScene, draw_hint, draw_logo, draw_panel
@@ -111,6 +112,9 @@ class ProfileScene(MenuScene):
     def _select(self, name: str) -> None:
         self.app.save.current = name
         self.app.persist()
+        p = self.app.profile
+        if p is None or not progression.tobi_unlocked(p):
+            self.app.difficulty = EZZZ       # TOBI PIZDA of the previous profile would lock every level
         from .main_menu import MainMenuScene
         self.app.scenes.reset(MainMenuScene(self.app))
 
@@ -199,7 +203,7 @@ class ProfileScene(MenuScene):
                 draw_text(surf, self.error, 28, (W // 2, cy + 179), config.C_RED_TEXT)
         else:
             q = i18n.t("profile.delete_q", name=self.to_delete or "")
-            draw_text(surf, q, 40, (W // 2, cy + 50), config.C_INK)
+            draw_text(surf, q, fit_size(q, 40, self.panel.w - 60), (W // 2, cy + 50), config.C_INK)
 
     def draw_over(self, surf: pg.Surface) -> None:
         hint = i18n.t("common.hint_nav")

@@ -8,9 +8,10 @@ import sys
 
 import pygame as pg
 
-from jebik import config, i18n, progression, save
+from jebik import config, progression, save
 from jebik.game.rules import EZZZ, TOBI
-from qa_soak import DT, LANG, SAVE_DIR, LevelRun, kev, soak_levels
+from qa_run import LevelRun, soak_levels
+from qa_soak import DT, LANG, SAVE_DIR, kev
 
 WIDE = "ШШШШШШШШШШШШШШШШ"          # 16 wide letters = MAX_NAME_LEN
 
@@ -193,13 +194,19 @@ def campaign(h, stats):
             h.key(pg.K_RETURN, wait=0.3)
         elif name == "GameScene":
             g = h.top
-            played.append(g.level_id)
-            run = LevelRun(h, g.level_id, len(played), "bot", 150.0)
+            retry = bool(played) and played[-1] == g.level_id
+            if not retry:
+                played.append(g.level_id)
+            run = LevelRun(h, g.level_id, len(played), "bot", 20.0 if retry else 150.0)
             run._hook(g)
             out = run.play(start=False)
             stats[("campaign", g.level_id)][out] += 1
             stats[("campaign", g.level_id)]["t"] += int(run.t)
-            if out not in ("win", "forced"):
+            if out == "lose" and h.top_name() == "LoseScene":
+                h.run(0.5)
+                h.top.restart()                     # «Заново» — then a short run and a forced win
+                h.settle(0.5)
+            elif out not in ("win", "forced"):
                 h.issue("campaign", f"{g.level_id}: {out}")
                 break
         elif name == "WinScene":
@@ -288,25 +295,6 @@ def tobi_flow(h, levels, runs, stats):
             expect(h, h.game is not g, "tobi", f"{lid} overeat did not restart")
     soak_levels(h, levels, runs, stats, TOBI, budget=200.0)
     h.app.difficulty = EZZZ
-
-
-def memory_loop(h, stats):
-    h.app.difficulty = EZZZ
-    h.draw_every = 4
-    for i in range(25):
-        run = LevelRun(h, "1-1", 50 + i, "random", 8.0)
-        run.start()
-        for _ in range(int(8 / DT)):
-            h.frame(run._random_events())
-            if h.game is None:
-                break
-        if h.game is not None and h.top is h.game:
-            h.key(pg.K_ESCAPE)
-            h.settle(0.2)
-            if h.top_name() == "PauseScene":
-                h.top.restart()
-                h.settle(0.4)
-    h.draw_every = 1
 
 
 # ---------------------------------------------------------------- records, profiles, saves

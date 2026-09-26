@@ -69,12 +69,13 @@ class FrogActions:
         self.events.extend(self.tiles.on_land(f.cell))
         for e in self.enemies:
             e.on_frog_land(self, f.cell)
+        if self.exit_cell == f.cell and self.state == PLAYING:
+            self._win()                  # the exit first: a fly resting on it is no overeat
+            return
         for fly in self.flies.at_cell(f.cell):
             self._eat(fly)
             if self.state != PLAYING:
                 return
-        if self.exit_cell == f.cell and self.state == PLAYING:
-            self._win()
 
     # ------------------------------------------------------------ tongue
     def _fire_tongue(self: "World", direction: int | None) -> None:

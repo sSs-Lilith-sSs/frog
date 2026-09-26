@@ -13,6 +13,7 @@ from jebik.game.rules import EZZZ, TOBI, compute_result
 WIDE = "ШШШШШШШШШШШШШШШШ"
 _calls: list[tuple[str, pg.Rect]] = []
 _orig = None
+_recording = False
 
 
 def _install():
@@ -24,7 +25,7 @@ def _install():
 
     def rec(surf, text, *a, **k):
         r = _orig(surf, text, *a, **k)
-        if surf.get_size() == (config.SCREEN_W, config.SCREEN_H) and str(text).strip():
+        if _recording and surf.get_size() == (config.SCREEN_W, config.SCREEN_H) and str(text).strip():
             _calls.append((str(text), pg.Rect(r)))
         return r
     for name, mod in list(sys.modules.items()):
@@ -55,9 +56,21 @@ def _containers(scene) -> list[tuple[str, pg.Rect]]:
 
 
 def check(h, label: str):
+    global _recording
     _calls.clear()
-    h.frame([])
     scene = h.top
+    mark = [0]
+
+    def draw(surf, _orig=scene.draw):           # texts of the scenes below (dimmed) come first
+        mark[0] = len(_calls)
+        _orig(surf)
+    scene.draw = draw
+    _recording = True
+    try:
+        h.frame([])
+    finally:
+        _recording = False
+        del scene.draw
     scr = pg.Rect(0, 0, config.SCREEN_W, config.SCREEN_H).inflate(4, 4)
     conts = _containers(scene)
     for s in h.app.scenes.stack:            # overlays: also the panels below the top
@@ -70,8 +83,9 @@ def check(h, label: str):
             if c.collidepoint(r.center) and not c.inflate(6, 6).contains(r):
                 h.issue("text_overflow", f"{label}: {text!r} {tuple(r)} out of {cname} {tuple(c)}")
                 break
-    for i, (ta, ra) in enumerate(_calls):
-        for tb, rb in _calls[i + 1:]:
+    top = _calls[mark[0]:]                      # overlaps only within the top scene
+    for i, (ta, ra) in enumerate(top):
+        for tb, rb in top[i + 1:]:
             if ta == tb:
                 continue
             a, b = ra.inflate(-10, -10), rb.inflate(-10, -10)

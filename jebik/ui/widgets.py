@@ -377,7 +377,8 @@ class TextInput(Widget):
         surf.blit(rounded_panel(r.size, (255, 255, 255), border, 26, 4), r.topleft)
         x = r.x + 30
         if self.text:
-            tr = draw_text(surf, self.text, 42, (x, r.centery - 2), config.C_INK, anchor="midleft")
+            size = fit_size(self.text, 42, r.right - 40 - x)       # 16 wide letters fit too
+            tr = draw_text(surf, self.text, size, (x, r.centery - 2), config.C_INK, anchor="midleft")
             caret_x = tr.right + 4
         else:
             draw_text(surf, _txt(self.placeholder), 40, (x, r.centery - 2), (170, 180, 170),

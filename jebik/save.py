@@ -8,6 +8,7 @@ never raises: a missing file gives defaults, a corrupt one is moved aside to
 from __future__ import annotations
 
 import json
+import math
 import os
 import time
 from dataclasses import dataclass, field
@@ -38,12 +39,11 @@ class Run:
 
     @classmethod
     def from_json(cls, d: Any) -> "Run | None":
-        if not isinstance(d, dict) or not isinstance(d.get("time"), (int, float)):
+        t = _float(d.get("time")) if isinstance(d, dict) else None
+        if t is None:
             return None
-        date = d.get("date")
-        return cls(score=_int(d.get("score"), 0, 0, 10**9), time=max(0.0, float(d["time"])),
-                   stars=_int(d.get("stars"), 1, 0, 3),
-                   date=float(date) if isinstance(date, (int, float)) else 0.0)
+        return cls(score=_int(d.get("score"), 0, 0, 10**9), time=max(0.0, t),
+                   stars=_int(d.get("stars"), 1, 0, 3), date=_float(d.get("date")) or 0.0)
 
 
 def run_order(r: Run) -> tuple[float, float, float]:
@@ -69,7 +69,7 @@ class LevelRecord:
             if isinstance(runs_raw, list) else []
         return cls(stars=_int(d.get("stars"), 0, 0, 3),
                    best_score=_int(d.get("best_score"), 0, 0, 10**9),
-                   best_time=float(bt) if isinstance(bt, (int, float)) else None,
+                   best_time=_float(bt),
                    completed=bool(d.get("completed", False)),
                    runs=sorted(runs, key=run_order)[:config.RECORDS_KEEP])
 
@@ -146,11 +146,11 @@ class Profile:
         prog_raw = d.get("progress", {})
         progress = {str(k): DifficultyProgress.from_json(v) for k, v in prog_raw.items()} \
             if isinstance(prog_raw, dict) else {}
-        created = d.get("created")
+        created = _float(d.get("created"))
         flags_raw = d.get("flags", [])
         flags = [str(f) for f in flags_raw if isinstance(f, str)] if isinstance(flags_raw, list) else []
-        return cls(name=name, created=float(created) if isinstance(created, (int, float))
-                   else time.time(), progress=progress, flags=flags)
+        return cls(name=name, created=time.time() if created is None else created,
+                   progress=progress, flags=flags)
 
 
 @dataclass
@@ -213,10 +213,16 @@ class SaveData:
             return False
 
 
+def _float(v: Any) -> float | None:
+    """A finite number from the JSON (``1e999`` / ``NaN`` parse as inf / nan), else None."""
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v):
+        return None
+    return float(v)
+
+
 def _int(v: Any, default: int, lo: int, hi: int) -> int:
-    if isinstance(v, bool) or not isinstance(v, (int, float)):
-        return default
-    return max(lo, min(hi, int(v)))
+    f = _float(v)
+    return default if f is None else max(lo, min(hi, int(f)))
 
 
 def _clean_settings(raw: Any) -> dict[str, Any]:
@@ -226,9 +232,9 @@ def _clean_settings(raw: Any) -> dict[str, Any]:
     if raw.get("lang") in ("ua", "en", "ru"):
         s["lang"] = raw["lang"]
     for key in ("music_volume", "sfx_volume"):
-        v = raw.get(key)
-        if isinstance(v, (int, float)) and not isinstance(v, bool):
-            s[key] = max(0.0, min(1.0, float(v)))
+        v = _float(raw.get(key))
+        if v is not None:
+            s[key] = max(0.0, min(1.0, v))
     if raw.get("music_track") in config.MUSIC_TRACKS:
         s["music_track"] = raw["music_track"]
     if raw.get("touch") in config.TOUCH_MODES:
