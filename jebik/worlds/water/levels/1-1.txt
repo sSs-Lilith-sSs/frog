@@ -5,7 +5,8 @@ world: water
 size: 12x8
 flies_needed: 5
 par_time: 60
-enemies: snake
+tobi_time: 150
+spawn: S=snake
 ---
 OOOOOO#OOOOO
 O##OOOOOOOSO

@@ -2,6 +2,9 @@
 
 Usage: ``i18n.set_lang("en"); i18n.t("menu.play")``. Title and subtitle are
 the same in every language by design.
+
+World packages keep their own strings in ``jebik/worlds/<id>/strings.py``
+(keys prefixed ``<id>.``); they are merged in automatically on first use.
 """
 from __future__ import annotations
 
@@ -55,15 +58,23 @@ _S: dict[str, tuple[str, str, str]] = {
     "diff.locked": ("після EZZZ", "after EZZZ", "после EZZZ"),
     # --- level select
     "levels.title": ("Вибір рівня", "Level select", "Выбор уровня"),
-    "world.1": ("Вода", "Water", "Вода"),
-    "world.2": ("Земля", "Land", "Земля"),
-    "world.3": ("Небо", "Sky", "Небо"),
     "levels.best": ("рекорд {score}", "best {score}", "рекорд {score}"),
     "levels.locked": ("закрито", "locked", "закрыто"),
+    "levels.world": ("Світ {n}", "World {n}", "Мир {n}"),
     # --- records
     "records.title": ("Рекорди", "Records", "Рекорды"),
-    "records.soon": ("Таблиця рекордів з'явиться скоро!", "The records table is coming soon!",
-                     "Таблица рекордов появится скоро!"),
+    "records.total": ("Загалом", "Total", "Всего"),
+    "records.level": ("Рівень {id}", "Level {id}", "Уровень {id}"),
+    "records.empty": ("Тут ще нікого немає — пройди рівень!", "Nobody here yet — beat the level!",
+                      "Тут ещё никого нет — пройди уровень!"),
+    "records.name": ("Гравець", "Player", "Игрок"),
+    "records.score": ("Очки", "Score", "Очки"),
+    "records.time": ("Час", "Time", "Время"),
+    "records.stars": ("Зірки", "Stars", "Звёзды"),
+    "records.levels": ("рівнів: {n}", "levels: {n}", "уровней: {n}"),
+    "records.hint": ("←/→ — рівень · Tab — складність · Esc — назад",
+                     "←/→ — level · Tab — difficulty · Esc — back",
+                     "←/→ — уровень · Tab — сложность · Esc — назад"),
     # --- settings
     "settings.title": ("Налаштування", "Settings", "Настройки"),
     "settings.music_volume": ("Гучність музики", "Music volume", "Громкость музыки"),
@@ -118,6 +129,12 @@ _S: dict[str, tuple[str, str, str]] = {
     "game.go": ("Злови {n} мух!", "Catch {n} flies!", "Поймай {n} мух!"),
     "game.max_hearts": ("серця повні", "hearts full", "сердца полны"),
     "game.long_tongue": ("довгий язик!", "long tongue!", "длинный язык!"),
+    "game.time_bonus": ("+{n} с", "+{n} s", "+{n} с"),
+    "game.oops": ("Ой!", "Oops!", "Ой!"),
+    "game.again": ("ще раз!", "again!", "ещё раз!"),
+    "game.boss_defeated": ("Переможено!", "Defeated!", "Побеждён!"),
+    "game.full_boss": ("а тепер — бос!", "now the boss!", "а теперь — босс!"),
+    "boss.generic": ("Бос", "Boss", "Босс"),
     # --- pause
     "pause.title": ("Пауза", "Paused", "Пауза"),
     "pause.resume": ("Продовжити", "Resume", "Продолжить"),
@@ -137,10 +154,54 @@ _S: dict[str, tuple[str, str, str]] = {
     "lose.title": ("Ой-ой...", "Oh no...", "Ой-ой..."),
     "lose.sub": ("Серця скінчилися. Спробуй ще!", "Out of hearts. Try again!",
                  "Сердца закончились. Попробуй ещё!"),
+    "lose.timeout": ("Час вийшов! Спробуй ще!", "Time's up! Try again!", "Время вышло! Попробуй ещё!"),
+    # --- story / cutscenes
+    "story.continue": ("Enter / тап — далі · Esc — пропустити", "Enter / tap — next · Esc — skip",
+                       "Enter / тап — дальше · Esc — пропустить"),
+    "story.intro.1": ("Жила-була жабка. Вона дуже любила мух — і ще більше любила пригоди.",
+                      "Once upon a time there was a frog. She loved flies — and loved adventures "
+                      "even more.",
+                      "Жила-была жабка. Она очень любила мух — и ещё больше любила приключения."),
+    "story.intro.2": ("Але жабка знає правило: з'їсти треба рівно стільки, скільки треба. "
+                      "Ні мухою більше!",
+                      "But the frog knows the rule: eat exactly as many as you need. Not one "
+                      "fly more!",
+                      "Но жабка знает правило: съесть надо ровно столько, сколько надо. "
+                      "Ни мухой больше!"),
+    "story.final.1": ("Жабка пройшла воду, землю і небо. Вона сита, щаслива і трохи втомилась.",
+                      "The frog crossed water, land and sky. She is full, happy and a little "
+                      "tired.",
+                      "Жабка прошла воду, землю и небо. Она сыта, счастлива и немного устала."),
+    "credits.title": ("Кінець", "The End", "Конец"),
+    "credits.made": ("Графіка, музика і код — згенеровані з любов'ю",
+                     "Art, music and code — generated with love",
+                     "Графика, музыка и код — сгенерированы с любовью"),
+    "credits.font": ("Шрифт: M PLUS Rounded 1c (OFL)", "Font: M PLUS Rounded 1c (OFL)",
+                     "Шрифт: M PLUS Rounded 1c (OFL)"),
+    "credits.thanks": ("Дякуємо за гру!", "Thanks for playing!", "Спасибо за игру!"),
 }
 
 _LANG_INDEX = {code: i for i, code in enumerate(LANGS)}
 _current = "ua"
+_worlds_merged = False
+
+
+def register(strings: dict[str, tuple[str, str, str]]) -> None:
+    """Add strings (e.g. of a world package); a key may not be redefined."""
+    for key, entry in strings.items():
+        if key in _S and _S[key] != entry:
+            raise ValueError(f"i18n key {key!r} defined twice")
+        _S[key] = entry
+
+
+def _ensure_worlds() -> None:
+    global _worlds_merged
+    if _worlds_merged:
+        return
+    _worlds_merged = True
+    from .worlds import all_worlds
+    for world in all_worlds():
+        register(world.strings)
 
 
 def set_lang(code: str) -> None:
@@ -153,15 +214,23 @@ def get_lang() -> str:
 
 
 def keys() -> list[str]:
+    _ensure_worlds()
     return list(_S)
 
 
+def has(key: str) -> bool:
+    _ensure_worlds()
+    return key in _S
+
+
 def raw(key: str) -> tuple[str, str, str]:
+    _ensure_worlds()
     return _S[key]
 
 
 def t(key: str, lang: str | None = None, **fmt: object) -> str:
     """Translate ``key``; missing keys fall back to the key itself."""
+    _ensure_worlds()
     entry = _S.get(key)
     if entry is None:
         return key

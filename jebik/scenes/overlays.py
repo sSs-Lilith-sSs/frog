@@ -8,13 +8,11 @@ import pygame as pg
 from .. import config, i18n
 from ..art.chars import frog_sprite
 from ..art.common import draw_text, fit_size, star_sprite, text_surface
-from ..save import next_level_id
-from ..game.grid import level_exists
 from ..ui.focus import FocusGroup
 from ..ui.widgets import Button
 from .base import Scene
 from .common import H, W, draw_panel
-from .flow import go_level_select, go_menu, start_level
+from .flow import after_win, go_menu
 
 
 def fmt_time(t: float) -> str:
@@ -136,12 +134,7 @@ class WinScene(Overlay):
         self._stars_played = 0
 
     def next(self) -> None:
-        nxt = next_level_id(self.result.level_id) if self.result else None
-        if nxt and level_exists(nxt):
-            self.app.scenes.pop(fade=False)
-            start_level(self.app, nxt, replace=True)
-        else:
-            go_level_select(self.app)
+        after_win(self.app, self.result.level_id if self.result else self.game.level_id)
 
     def update(self, dt: float) -> None:
         super().update(dt)
@@ -211,4 +204,5 @@ class LoseScene(Overlay):
         surf.blit(frog, frog.get_rect(center=(p.centerx, p.y - 10)))
         draw_text(surf, i18n.t("lose.title"), 76, (p.centerx, p.y + 120), (235, 120, 120),
                   outline=(120, 40, 50), outline_w=5)
-        draw_text(surf, i18n.t("lose.sub"), 34, (p.centerx, p.y + 210), (80, 105, 85), bold=False)
+        key = "lose.timeout" if self.game.world.lose_reason == "timeout" else "lose.sub"
+        draw_text(surf, i18n.t(key), 34, (p.centerx, p.y + 210), (80, 105, 85), bold=False)

@@ -12,7 +12,7 @@ PACKAGE_DIR = Path(__file__).resolve().parent
 ASSETS_DIR = PACKAGE_DIR / "assets"
 FONT_DIR = ASSETS_DIR / "fonts"
 AUDIO_DIR = ASSETS_DIR / "audio"
-LEVELS_DIR = PACKAGE_DIR / "levels"
+WORLDS_DIR = PACKAGE_DIR / "worlds"
 FONT_BOLD = FONT_DIR / "MPLUSRounded1c-Bold.ttf"
 FONT_REGULAR = FONT_DIR / "MPLUSRounded1c-Regular.ttf"
 
@@ -70,19 +70,33 @@ SPECIAL_LIFETIME = 13.0            # golden/firefly leave after this long
 
 FLY_VALUE = {"fly": 1, "dragon": 2, "gold": 0, "firefly": 0}
 
-# ---------------------------------------------------------------- snake
-SNAKE_LENGTH = 4                   # head + body segments
-SNAKE_CHASE_STEP = 0.27            # seconds per cell while chasing
-SNAKE_WANDER_STEP = 0.46           # seconds per cell while wandering
-SNAKE_SIGHT = 4                    # starts chasing within this Manhattan distance
-SNAKE_LOSE_SIGHT = 6               # gives up beyond this distance
-SNAKE_RETREAT_TIME = 2.6           # after biting, the snake backs off
-SNAKE_SAFE_RESPAWN_DIST = 3        # respawn pad must be this far from the snake
+# ---------------------------------------------------------------- enemies / respawn
+SAFE_RESPAWN_DIST = 3              # respawn tile must be this far from any enemy cell
+
+# ---------------------------------------------------------------- tile hazards
+UNSTABLE_WARN = 1.5                # flicker before an unstable tile vanishes
+UNSTABLE_GONE = 4.0                # ... then it is gone this long
+UNSTABLE_STABLE = 5.0              # "cycle" tiles stay solid this long between cycles
+ROW_SLIDE_TIME = 0.35              # render slide of a moving row (logic shifts instantly)
+
+# ---------------------------------------------------------------- bosses
+BOSS_HP = 3
+BOSS_WINDOW = 3.0                  # default vulnerability window, seconds
+BOSS_HIT_FLASH = 0.6
+BOSS_PILL_RESERVE = 64             # px kept above the field for the HUD boss pill
+
+# ---------------------------------------------------------------- TOBI PIZDA
+TOBI_DEFAULT_TIME = 120.0          # when a level has no tobi_time
+TOBI_GOLD_BONUS = 10.0             # golden fly adds seconds
+TOBI_WARN_TIME = 10.0              # HUD timer turns red below this
+TOBI_RESTART_DELAY = 1.1           # "Ой!" before an automatic restart
 
 # ---------------------------------------------------------------- scoring
 SCORE_PER_FLY = 100
 SCORE_PER_HEART = 200
 SCORE_NO_DAMAGE = 500
+SCORE_PER_SECOND_LEFT = 10         # TOBI PIZDA time bonus
+RECORDS_KEEP = 10                  # runs kept per level per profile / rows shown
 WIN_DELAY = 0.9                    # celebration before the win panel
 LOSE_DELAY = 0.9
 
@@ -91,6 +105,14 @@ MUSIC_TRACKS = ("A", "B", "C")
 MUSIC_FILES = {"A": "music_a.wav", "B": "music_b.wav", "C": "music_c.wav"}
 SFX_NAMES = ("jump", "tongue", "eat", "splash", "hit", "win", "lose",
              "superjump", "powerup", "click", "overeat", "full", "denied", "tick")
+INTRO_FANFARE = "intro_fanfare.wav"
+INTRO_CUSTOM = ("intro_custom.ogg", "intro_custom.wav")   # dropped in by the user: played instead
+
+# ---------------------------------------------------------------- studio splash
+STUDIO_TIME = 6.8                  # total, incl. fade in/out
+STUDIO_FADE_IN = 0.6
+STUDIO_FADE_OUT = 1.0
+STUDIO_ZOOM = (1.0, 1.13)          # slow camera push-in
 DEFAULT_SETTINGS = {
     "lang": "ua",
     "music_volume": 0.6,
@@ -131,9 +153,6 @@ C_HUD_HINT = (200, 200, 170)
 C_HUD_MUTED = (170, 190, 170)
 C_HEART = (225, 50, 65)
 C_HEART_EMPTY = (80, 80, 80)
-C_FIELD_BORDER = (30, 80, 90)
-C_POND_TOP = (80, 170, 195)
-C_POND_BOTTOM = (45, 125, 170)
 C_PANEL = (250, 248, 236)
 C_DIM = (10, 25, 30, 150)
 C_STAR = (255, 205, 60)

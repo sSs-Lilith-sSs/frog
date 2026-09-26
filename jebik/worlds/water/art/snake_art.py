@@ -10,9 +10,10 @@ import math
 
 import pygame as pg
 
-from .chars import (SNAKE_BELLY, SNAKE_BODY, SNAKE_SHADOW, SNAKE_SPOT,
-                    snake_head_sprite)
-from .common import disc_sprite
+from ....art.common import disc_sprite
+from ....art.enemy_art import EnemyArt, register_enemy_art
+from .characters import (SNAKE_BELLY, SNAKE_BODY, SNAKE_SHADOW, SNAKE_SPOT,
+                         snake_head_sprite)
 
 Point = tuple[float, float]
 
@@ -95,3 +96,14 @@ class SnakeArt:
             head.set_alpha(alpha)
         _blit_disc(surf, SNAKE_SHADOW, 14 * k, (hx + sh[0], hy + sh[1]), alpha)
         surf.blit(head, head.get_rect(center=(round(hx), round(hy))))
+
+
+@register_enemy_art("snake")
+class SnakeRenderer(EnemyArt):
+    def __init__(self, view):
+        super().__init__(view)
+        self.art = SnakeArt(self.cs)
+
+    def draw(self, surf: pg.Surface, enemy, off: tuple[int, int]) -> None:
+        pts = [self.px(p, off) for p in enemy.segment_positions()]
+        self.art.draw(surf, pts, enemy.head_dir(), enemy.anim)

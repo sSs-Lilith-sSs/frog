@@ -7,6 +7,7 @@ from __future__ import annotations
 import math
 import random
 from dataclasses import dataclass, field
+from typing import Callable
 
 from .. import config
 from .grid import Cell, Level
@@ -62,8 +63,10 @@ class Fly:
 class FlyManager:
     """Owns all flies, their flight and the spawn schedule."""
 
-    def __init__(self, level: Level, rng: random.Random, auto_spawn: bool = True):
+    def __init__(self, level: Level, rng: random.Random, auto_spawn: bool = True,
+                 can_rest: Callable[[Cell], bool] | None = None):
         self.level = level
+        self.can_rest = can_rest or level.is_pad      # live tiles (World passes TileMap)
         self.rng = rng
         self.auto_spawn = auto_spawn
         self.flies: list[Fly] = []
@@ -118,7 +121,7 @@ class FlyManager:
         lv = self.level
         cells = [c for c in lv.cells()
                  if abs(c[0] - avoid[0]) + abs(c[1] - avoid[1]) > radius]
-        pads = [c for c in cells if c in lv.pads]
+        pads = [c for c in cells if self.can_rest(c)]
         pool = pads if pads and self.rng.random() > config.FLY_WATER_CHANCE else cells
         return self.rng.choice(pool or list(lv.cells()))
 
@@ -141,6 +144,19 @@ class FlyManager:
             self.flies.remove(fly)
             if fly.counted and self.auto_spawn:
                 self.respawn_timers.append(self.rng.uniform(*config.FLY_RESPAWN_DELAY))
+
+    def carry_row(self, row: int, direction: int, width: int) -> None:
+        """A moving row shifted: resting flies ride along (wrapping around)."""
+        for fly in self.flies:
+            if fly.state == RESTING and not fly.caught and fly.cell[1] == row:
+                x = (fly.cell[0] + direction) % width
+                fly.pos = (float(x), fly.pos[1])
+
+    def unrest_where(self, gone: Callable[[Cell], bool]) -> None:
+        """Flies sitting on a vanished tile take off."""
+        for fly in self.flies:
+            if fly.state == RESTING and not fly.caught and gone(fly.cell):
+                fly.state, fly.wait = HOVER, self.rng.uniform(*config.FLY_SHORT_PAUSE)
 
     def drain_spawned(self) -> list[Fly]:
         out, self.spawned = self.spawned, []
@@ -198,8 +214,8 @@ class FlyManager:
         if not options:
             fly.state, fly.wait = HOVER, 0.4
             return
-        pads = [c for c in options if c in lv.pads]
-        water = [c for c in options if c not in lv.pads]
+        pads = [c for c in options if self.can_rest(c)]
+        water = [c for c in options if not self.can_rest(c)]
         if water and (not pads or self.rng.random() < config.FLY_WATER_CHANCE):
             pool = water
         else:
@@ -238,7 +254,7 @@ class FlyManager:
                 return
             if self.rng.random() < config.FLY_REST_CHANCE and fly.kind != "dragon":
                 # sit down on a pad; over water it just hovers for a while
-                on_pad = fly.cell in self.level.pads
+                on_pad = self.can_rest(fly.cell)
                 fly.state = RESTING if on_pad else HOVER
                 fly.wait = self.rng.uniform(*config.FLY_REST_TIME)
             else:

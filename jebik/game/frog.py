@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
+from typing import Any
 
 from .. import config
 from .grid import Cell, DIRS
@@ -33,6 +34,7 @@ class Tongue:
     phase: str = "out"         # out -> hold -> in
     hold: float = 0.0
     fly_id: int | None = None  # caught fly, travels back on the tip
+    enemy: Any = None          # enemy the tongue will hit (see Enemy.tongue_hit)
 
     def tip(self, origin: tuple[float, float]) -> tuple[float, float]:
         dx, dy = DIRS[self.direction]
@@ -71,6 +73,11 @@ class Frog:
     @property
     def can_act(self) -> bool:
         return self.state == IDLE
+
+    @property
+    def grounded(self) -> bool:
+        """Standing on a cell (carried by moving rows, can fall if it vanishes)."""
+        return self.state in (IDLE, TONGUE, HIT)
 
     @property
     def airborne(self) -> bool:

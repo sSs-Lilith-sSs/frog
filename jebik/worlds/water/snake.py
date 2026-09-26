@@ -1,35 +1,49 @@
-"""The snake: BFS chaser that only ever crawls over pads (no pygame)."""
+"""The snake: BFS chaser that only ever crawls over tiles (no pygame)."""
 from __future__ import annotations
 
 import math
 import random
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Iterator
 
-from .. import config
-from .grid import Cell, Level, bfs_path, manhattan
+from ...game.enemy import Enemy, register_enemy
+from ...game.grid import Cell, Level, Spawn, bfs_path, manhattan
+from . import config as wc
+
+if TYPE_CHECKING:
+    from ...game.world import World
 
 WANDER = "wander"
 CHASE = "chase"
 RETREAT = "retreat"
 
 
-@dataclass
-class Snake:
+@register_enemy("snake")
+@dataclass(eq=False)
+class Snake(Enemy):
     level: Level
     rng: random.Random
     cells: list[Cell]                  # head first; positions at step start
     next_cell: Cell | None = None      # head is moving into this cell
     t: float = 0.0                     # 0..1 progress of the current step
-    step_time: float = config.SNAKE_WANDER_STEP
+    step_time: float = wc.SNAKE_WANDER_STEP
     mode: str = WANDER
     retreat: float = 0.0
     visited: set[Cell] = field(default_factory=set)   # for tests / debugging
     anim: float = 0.0                  # free-running clock for wiggle
+    world: "World | None" = field(default=None, repr=False)
+
+    @classmethod
+    def create(cls, world: "World", spawn: Spawn) -> "Snake":
+        snake = cls.spawn(world.level, spawn.cell or world.level.frog_start, world.rng,
+                          length=int(spawn.param("length", wc.SNAKE_LENGTH)))
+        snake.world = world
+        return snake
 
     @classmethod
     def spawn(cls, level: Level, start: Cell, rng: random.Random,
-              length: int = config.SNAKE_LENGTH) -> "Snake":
-        """Lay the body out along pads behind the head."""
+              length: int = wc.SNAKE_LENGTH) -> "Snake":
+        """Lay the body out along tiles behind the head."""
         cells = [start]
         while len(cells) < length:
             tail = cells[-1]
@@ -47,6 +61,10 @@ class Snake:
     @property
     def head(self) -> Cell:
         return self.cells[0]
+
+    @property
+    def pos(self) -> tuple[float, float]:              # type: ignore[override]
+        return self.segment_positions()[0]
 
     def segment_positions(self) -> list[tuple[float, float]]:
         """Continuous positions of head and body segments (cell units)."""
@@ -77,18 +95,36 @@ class Snake:
         return any(math.hypot(px - pos[0], py - pos[1]) < radius
                    for px, py in self.segment_positions())
 
-    # ------------------------------------------------------------ behaviour
-    def start_retreat(self) -> None:
-        self.retreat = config.SNAKE_RETREAT_TIME
+    def hurts(self, world: "World", frog_pos: tuple[float, float]) -> bool:
+        return self.touches(frog_pos, self.contact_radius)
 
-    def update(self, dt: float, frog_cell: Cell | None) -> None:
+    def _neighbors(self, cell: Cell) -> Iterator[Cell]:
+        if self.world is not None:
+            return self.world.tiles.neighbors(cell)
+        return self.level.pad_neighbors(cell)
+
+    # ------------------------------------------------------------ reactions
+    def start_retreat(self) -> None:
+        self.retreat = wc.SNAKE_RETREAT_TIME
+
+    def on_frog_hit(self, world: "World") -> None:
+        self.start_retreat()
+
+    def on_frog_respawn(self, world: "World", cell: Cell) -> None:
+        if manhattan(self.head, cell) <= wc.SNAKE_SIGHT:   # no spawn camping
+            self.start_retreat()
+
+    # ------------------------------------------------------------ behaviour
+    def update(self, dt: float, world: "World") -> None:
+        self.world = world
+        frog_cell = world.frog_target
         self.anim += dt
         if self.retreat > 0:
             self.retreat -= dt
         if self.next_cell is None:
             self._decide(frog_cell)
             return
-        self.t += dt / self.step_time
+        self.t += dt / self.step_time * world.enemy_speed
         if self.t >= 1.0:
             self.cells = [self.next_cell] + self.cells[:-1]
             self.visited.add(self.next_cell)
@@ -101,7 +137,7 @@ class Snake:
 
     def _free_neighbors(self) -> list[Cell]:
         body = set(self.cells[:-1])          # the tail moves away this step
-        return [n for n in self.level.pad_neighbors(self.head) if n not in body]
+        return [n for n in self._neighbors(self.head) if n not in body]
 
     def _decide(self, frog_cell: Cell | None) -> None:
         options = self._free_neighbors()
@@ -111,9 +147,9 @@ class Snake:
         dist = manhattan(self.head, frog_cell) if frog_cell is not None else 99
         if self.retreat > 0 and frog_cell is not None:
             self.mode = RETREAT
-        elif self.mode == CHASE and dist <= config.SNAKE_LOSE_SIGHT:
+        elif self.mode == CHASE and dist <= wc.SNAKE_LOSE_SIGHT:
             self.mode = CHASE
-        elif dist <= config.SNAKE_SIGHT:
+        elif dist <= wc.SNAKE_SIGHT:
             self.mode = CHASE
         else:
             self.mode = WANDER
@@ -122,26 +158,26 @@ class Snake:
         if self.mode == RETREAT:
             best = max(manhattan(o, frog_cell) for o in options)
             choice = self.rng.choice([o for o in options if manhattan(o, frog_cell) == best])
-            self.step_time = config.SNAKE_WANDER_STEP * 0.8
+            self.step_time = wc.SNAKE_WANDER_STEP * 0.8
         elif self.mode == CHASE and frog_cell is not None:
             path = self.path_to(frog_cell)
             if path and len(path) > 1:
                 choice = path[1]
-                self.step_time = config.SNAKE_CHASE_STEP
+                self.step_time = wc.SNAKE_CHASE_STEP
             else:
                 self.mode = WANDER
         if choice is None:
             choice = self._wander_choice(options)
-            self.step_time = config.SNAKE_WANDER_STEP
+            self.step_time = wc.SNAKE_WANDER_STEP
         self.next_cell = choice
         self.t = 0.0
 
     def path_to(self, goal: Cell) -> list[Cell] | None:
-        """Shortest pad-only path; the body (except the tail) blocks."""
+        """Shortest tile-only path; the body (except the tail) blocks."""
         blocked = set(self.cells[1:-1])
 
         def nbrs(c: Cell):
-            for n in self.level.pad_neighbors(c):
+            for n in self._neighbors(c):
                 if n not in blocked:
                     yield n
         return bfs_path(self.head, goal, nbrs)

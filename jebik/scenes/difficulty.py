@@ -5,7 +5,7 @@ import math
 
 import pygame as pg
 
-from .. import config, i18n
+from .. import config, i18n, progression
 from ..art.common import (draw_text, heart_sprite, lock_sprite, render_ss,
                           rounded_panel, triangle_sprite)
 from ..game.rules import DIFFICULTY_NAMES, EZZZ, TOBI
@@ -76,11 +76,14 @@ class DifficultyScene(MenuScene):
         y = 250
         ez = DifficultyCard((W // 2 - CARD_W - 30, y, CARD_W, CARD_H), EZZZ,
                             lambda: self._pick(EZZZ), False)
-        # TOBI PIZDA opens after EZZZ; in Build 1 its levels do not exist yet,
-        # so it always stays locked.
+        # TOBI PIZDA opens after every playable EZZZ level is completed
         tobi = DifficultyCard((W // 2 + 30, y, CARD_W, CARD_H), TOBI,
-                              lambda: self._pick(TOBI), True)
+                              lambda: self._pick(TOBI), self._tobi_locked)
         self.focus.set_widgets([ez, tobi, self.back_button()], keep=False)
+
+    def _tobi_locked(self) -> bool:
+        p = self.app.profile
+        return not (p and progression.tobi_unlocked(p))
 
     def _pick(self, diff: str) -> None:
         self.app.difficulty = diff

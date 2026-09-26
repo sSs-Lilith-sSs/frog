@@ -15,8 +15,7 @@ from typing import Any
 
 from . import config
 
-SAVE_VERSION = 1
-FIRST_LEVEL = "1-1"
+SAVE_VERSION = 2
 MAX_NAME_LEN = 16
 
 
@@ -29,13 +28,27 @@ def save_path() -> Path:
     return save_dir() / "save.json"
 
 
-def next_level_id(level_id: str) -> str | None:
-    w, lv = (int(p) for p in level_id.split("-"))
-    if lv < 4:
-        return f"{w}-{lv + 1}"
-    if w < 3:
-        return f"{w + 1}-1"
-    return None
+@dataclass
+class Run:
+    """One won run (kept for the records table)."""
+    score: int
+    time: float
+    stars: int
+    date: float = 0.0
+
+    @classmethod
+    def from_json(cls, d: Any) -> "Run | None":
+        if not isinstance(d, dict) or not isinstance(d.get("time"), (int, float)):
+            return None
+        date = d.get("date")
+        return cls(score=_int(d.get("score"), 0, 0, 10**9), time=max(0.0, float(d["time"])),
+                   stars=_int(d.get("stars"), 1, 0, 3),
+                   date=float(date) if isinstance(date, (int, float)) else 0.0)
+
+
+def run_order(r: Run) -> tuple[float, float, float]:
+    """Records order: higher score, then faster, then earlier."""
+    return (-r.score, r.time, r.date)
 
 
 @dataclass
@@ -44,37 +57,44 @@ class LevelRecord:
     best_score: int = 0
     best_time: float | None = None
     completed: bool = False
+    runs: list[Run] = field(default_factory=list)      # best first, <= RECORDS_KEEP
 
     @classmethod
     def from_json(cls, d: Any) -> "LevelRecord":
         if not isinstance(d, dict):
             return cls()
         bt = d.get("best_time")
+        runs_raw = d.get("runs", [])
+        runs = [r for r in (Run.from_json(x) for x in runs_raw) if r] \
+            if isinstance(runs_raw, list) else []
         return cls(stars=_int(d.get("stars"), 0, 0, 3),
                    best_score=_int(d.get("best_score"), 0, 0, 10**9),
                    best_time=float(bt) if isinstance(bt, (int, float)) else None,
-                   completed=bool(d.get("completed", False)))
+                   completed=bool(d.get("completed", False)),
+                   runs=sorted(runs, key=run_order)[:config.RECORDS_KEEP])
+
+    def to_json(self) -> dict[str, Any]:
+        return {"stars": self.stars, "best_score": self.best_score, "best_time": self.best_time,
+                "completed": self.completed, "runs": [vars(r) for r in self.runs]}
 
 
 @dataclass
 class DifficultyProgress:
-    unlocked: list[str] = field(default_factory=lambda: [FIRST_LEVEL])
+    """Per-difficulty results. Which levels are open is computed from the
+    completed ones (see :mod:`jebik.progression`), never stored."""
     levels: dict[str, LevelRecord] = field(default_factory=dict)
 
     @classmethod
     def from_json(cls, d: Any) -> "DifficultyProgress":
         if not isinstance(d, dict):
             return cls()
-        unlocked = [str(x) for x in d.get("unlocked", []) if isinstance(x, str)]
-        if FIRST_LEVEL not in unlocked:
-            unlocked.insert(0, FIRST_LEVEL)
         levels_raw = d.get("levels", {})
         levels = {str(k): LevelRecord.from_json(v) for k, v in levels_raw.items()} \
             if isinstance(levels_raw, dict) else {}
-        return cls(unlocked=unlocked, levels=levels)
+        return cls(levels=levels)
 
-    def is_unlocked(self, level_id: str) -> bool:
-        return level_id in self.unlocked
+    def completed(self, level_id: str) -> bool:
+        return self.record(level_id).completed
 
     def record(self, level_id: str) -> LevelRecord:
         return self.levels.get(level_id, LevelRecord())
@@ -88,18 +108,22 @@ class Profile:
     name: str
     created: float = field(default_factory=time.time)
     progress: dict[str, DifficultyProgress] = field(default_factory=dict)
+    flags: list[str] = field(default_factory=list)   # seen cutscenes, unlocks...
+
+    def has(self, flag: str) -> bool:
+        return flag in self.flags
+
+    def mark(self, flag: str) -> None:
+        if flag not in self.flags:
+            self.flags.append(flag)
 
     def diff(self, difficulty: str) -> DifficultyProgress:
         if difficulty not in self.progress:
             self.progress[difficulty] = DifficultyProgress()
         return self.progress[difficulty]
 
-    def completed_difficulty(self, difficulty: str) -> bool:
-        """True when the last level (3-4) of that difficulty is completed."""
-        return self.diff(difficulty).record("3-4").completed
-
     def record_result(self, difficulty: str, level_id: str, score: int,
-                      stars: int, time_s: float) -> bool:
+                      stars: int, time_s: float, date: float | None = None) -> bool:
         """Store a win; returns True if it is a new best score."""
         prog = self.diff(difficulty)
         rec = prog.levels.setdefault(level_id, LevelRecord())
@@ -108,9 +132,8 @@ class Profile:
         rec.stars = max(rec.stars, stars)
         rec.best_score = max(rec.best_score, score)
         rec.best_time = time_s if rec.best_time is None else min(rec.best_time, time_s)
-        nxt = next_level_id(level_id)
-        if nxt and nxt not in prog.unlocked:
-            prog.unlocked.append(nxt)
+        rec.runs.append(Run(score, time_s, stars, time.time() if date is None else date))
+        rec.runs = sorted(rec.runs, key=run_order)[:config.RECORDS_KEEP]
         return new_best
 
     @classmethod
@@ -124,8 +147,10 @@ class Profile:
         progress = {str(k): DifficultyProgress.from_json(v) for k, v in prog_raw.items()} \
             if isinstance(prog_raw, dict) else {}
         created = d.get("created")
+        flags_raw = d.get("flags", [])
+        flags = [str(f) for f in flags_raw if isinstance(f, str)] if isinstance(flags_raw, list) else []
         return cls(name=name, created=float(created) if isinstance(created, (int, float))
-                   else time.time(), progress=progress)
+                   else time.time(), progress=progress, flags=flags)
 
 
 @dataclass
@@ -165,13 +190,12 @@ class SaveData:
     # ------------------------------------------------------------ io
     def to_json(self) -> dict[str, Any]:
         def prog(dp: DifficultyProgress) -> dict[str, Any]:
-            return {"unlocked": dp.unlocked,
-                    "levels": {k: vars(v) for k, v in dp.levels.items()}}
+            return {"levels": {k: v.to_json() for k, v in dp.levels.items()}}
         return {
             "version": SAVE_VERSION,
             "settings": self.settings,
             "current_profile": self.current,
-            "profiles": [{"name": p.name, "created": p.created,
+            "profiles": [{"name": p.name, "created": p.created, "flags": p.flags,
                           "progress": {k: prog(v) for k, v in p.progress.items()}}
                          for p in self.profiles],
         }

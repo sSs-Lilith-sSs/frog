@@ -1,65 +1,57 @@
-"""Level select: 3 worlds x 4 levels with stars, locks and "soon" tiles."""
+"""Level select: 3 worlds x 4 levels with stars, locks and «скоро» tiles.
+
+Tile states come from :mod:`jebik.progression`; colours and icons from each
+world's theme / art package.
+"""
 from __future__ import annotations
 
 import math
 
 import pygame as pg
 
-from .. import config, i18n
+from .. import config, i18n, progression
 from ..art.chars import fly_sprite
-from ..art.common import (draw_text, fit_size, font, lock_sprite, render_ss,
+from ..art.common import (draw_text, fit_size, font, lerp, lock_sprite,
                           rounded_panel, star_sprite)
-from ..game.grid import level_exists
+from ..art.world_art import art_for
 from ..game.rules import DIFFICULTY_NAMES, EZZZ, TOBI
 from ..ui.widgets import Button
+from ..worlds import all_worlds, world_by_index
+from ..worlds.catalog import LEVELS_PER_WORLD
 from .common import W, MenuScene, draw_hint
-from .flow import LEVELS_PER_WORLD, WORLDS, start_level
+from .flow import start_level
 
 TILE_W, TILE_H, GAP = 210, 170, 26
 LABEL_W = 180             # world card: picture only
 WORLD_ICON = 124
 ROW_Y0, ROW_STEP = 290, 200
-WORLD_TINT = {1: (205, 236, 245), 2: (222, 240, 200), 3: (250, 226, 240)}
-WORLD_INK = {1: (40, 100, 140), 2: (70, 110, 40), 3: (150, 70, 120)}
-
-
-def world_icon(world: int, size: int) -> pg.Surface:
-    def draw(s: pg.Surface, ss: float) -> None:
-        u = size * ss / 20
-        if world == 1:     # water drop
-            pg.draw.circle(s, (70, 160, 215), (10 * u, 12.5 * u), 6 * u)
-            pg.draw.polygon(s, (70, 160, 215), [(10 * u, 1.5 * u), (4.4 * u, 10.5 * u), (15.6 * u, 10.5 * u)])
-            pg.draw.circle(s, (190, 230, 250), (8 * u, 13 * u), 1.8 * u)
-        elif world == 2:   # grass tuft
-            for dx, h, lean in ((-5, 12, -3), (0, 16, 0), (5, 11, 3), (-2, 9, -1), (3, 13, 1)):
-                pg.draw.polygon(s, (90, 160, 60), [((10 + dx - 1.6) * u, 18 * u), ((10 + dx + 1.6) * u, 18 * u),
-                                                   ((10 + dx + lean) * u, (18 - h) * u)])
-            pg.draw.ellipse(s, (130, 95, 60), (3 * u, 16.5 * u, 14 * u, 3.5 * u))
-        else:              # pink cloud
-            for cx, cy, r in ((7, 12, 4.5), (12, 10, 5.5), (15.5, 13, 3.8), (10, 14, 4)):
-                pg.draw.circle(s, (245, 175, 210), (cx * u, cy * u), r * u)
-    return render_ss((size, size), draw)
 
 
 class LevelTile(Button):
     def __init__(self, rect, scene: "LevelSelectScene", level_id: str):
         self.scene = scene
         self.level_id = level_id
-        self.world = int(level_id[0])
+        self.theme = world_by_index(int(level_id.split("-")[0])).theme
         super().__init__(rect, level_id, lambda: scene.open_level(level_id), size=46,
-                         locked=lambda: not self.unlocked, radius=26, shadow=7)
+                         locked=lambda: self.state == progression.LOCKED, radius=26, shadow=7)
+
+    @property
+    def state(self) -> str:
+        p = self.scene.app.profile
+        if p is None:
+            return progression.LOCKED
+        return progression.level_state(p, self.scene.app.difficulty, self.level_id)
 
     @property
     def unlocked(self) -> bool:
-        p = self.scene.app.profile
-        return bool(p and p.diff(self.scene.app.difficulty).is_unlocked(self.level_id))
+        return self.state != progression.LOCKED
 
     @property
     def playable(self) -> bool:
-        return self.unlocked and level_exists(self.level_id)
+        return self.state == progression.OPEN
 
     def activate(self) -> None:
-        if self.unlocked and not self.playable:
+        if self.state == progression.SOON:
             self.shake = 0.4
             from ..ui.widgets import play
             play("denied")
@@ -73,8 +65,10 @@ class LevelTile(Button):
             fill, ink = config.C_BUTTON_DISABLED, (120, 125, 118)
         elif self.hot:
             fill, ink = config.C_BUTTON_HOT, config.C_INK
+        elif not self.playable:                     # «скоро»: muted world colours
+            fill, ink = lerp(self.theme.tile_tint, (228, 228, 222), 0.6), (130, 135, 128)
         else:
-            fill, ink = WORLD_TINT[self.world], WORLD_INK[self.world]
+            fill, ink = self.theme.tile_tint, self.theme.tile_ink
         surf.blit(rounded_panel(r.size, fill, config.C_BUTTON_SHADOW, 26, 4,
                                 None if self.pressed else config.C_BUTTON_SHADOW, 7), (r.x, r.y + down))
         r = r.move(0, down)
@@ -100,8 +94,14 @@ class LevelTile(Button):
 
 
 class DiffPill(Button):
-    def __init__(self, rect, diff: str, scene: "LevelSelectScene", locked: bool):
-        super().__init__(rect, DIFFICULTY_NAMES[diff], lambda: None, size=30, locked=locked,
+    def __init__(self, rect, diff: str, scene: "LevelSelectScene"):
+        def locked() -> bool:
+            p = scene.app.profile
+            return diff == TOBI and not (p and progression.tobi_unlocked(p))
+
+        def pick() -> None:
+            scene.app.difficulty = diff
+        super().__init__(rect, DIFFICULTY_NAMES[diff], pick, size=30, locked=locked,
                          selected=lambda: scene.app.difficulty == diff, arrow=False,
                          radius=28, shadow=0, border=3)
 
@@ -130,25 +130,26 @@ class LevelSelectScene(MenuScene):
         total_w = LABEL_W + LEVELS_PER_WORLD * TILE_W + (LEVELS_PER_WORLD - 1) * GAP + 30
         self.x0 = (W - total_w) // 2
         tiles = []
-        for wi, world in enumerate(WORLDS):
+        self.worlds = all_worlds()
+        for wi, world in enumerate(self.worlds):
             y = ROW_Y0 + wi * ROW_STEP
             for li in range(LEVELS_PER_WORLD):
                 x = self.x0 + LABEL_W + 30 + li * (TILE_W + GAP)
-                tiles.append(LevelTile((x, y, TILE_W, TILE_H), self, f"{world}-{li + 1}"))
-        pills = [DiffPill((W // 2 - 290, 168, 260, 56), EZZZ, self, False),
-                 DiffPill((W // 2 + 30, 168, 260, 56), TOBI, self, True)]
+                tiles.append(LevelTile((x, y, TILE_W, TILE_H), self, world.level_id(li + 1)))
+        pills = [DiffPill((W // 2 - 290, 168, 260, 56), EZZZ, self),
+                 DiffPill((W // 2 + 30, 168, 260, 56), TOBI, self)]
         self.focus.set_widgets(tiles + pills + [self.back_button()], keep=False)
-        self._icons = {w: world_icon(w, WORLD_ICON) for w in WORLDS}
+        self._icons = {w.id: art_for(w.id).icon(WORLD_ICON) for w in self.worlds}
 
     def open_level(self, level_id: str) -> None:
         start_level(self.app, level_id)
 
     def draw_content(self, surf: pg.Surface) -> None:
-        for wi, world in enumerate(WORLDS):
+        for wi, world in enumerate(self.worlds):
             y = ROW_Y0 + wi * ROW_STEP
             r = pg.Rect(self.x0, y + 8, LABEL_W, TILE_H - 16)
-            surf.blit(rounded_panel(r.size, (255, 255, 255), WORLD_INK[world], 30, 3), r.topleft)
-            ic = self._icons[world]
+            surf.blit(rounded_panel(r.size, (255, 255, 255), world.theme.tile_ink, 30, 3), r.topleft)
+            ic = self._icons[world.id]
             bob = math.sin(self.time * 1.8 + wi) * 3
             surf.blit(ic, ic.get_rect(center=(r.centerx, r.centery + bob)))
         # a fly buzzing next to the title, for life

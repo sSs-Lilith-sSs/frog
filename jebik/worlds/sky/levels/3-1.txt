@@ -1,0 +1,23 @@
+# Світ 3 «Небо», рівень 1 — ЗАГЛУШКА (placeholder): хмаринки над прірвою.
+# O — хмаринка, # — прірва, U — хмаринка, що тане, F — старт жабки.
+# Рядки 2 і 6 пливуть (moving) і везуть жабку; з краю — падіння.
+# TODO(sky agent): real map + swallow (enemies: swallow).
+id: 3-1
+world: sky
+size: 16x10
+flies_needed: 14
+par_time: 140
+tobi_time: 80
+unstable: warn=1.5 gone=4 trigger=step
+moving: 2 right 2.6; 6 left 3.2
+---
+OOOOOO##OOOOOOOO
+OOUOOOOOOO#OOUOO
+OOO##OOO##OOO##O
+OOOOOOOOOOOOOOOO
+O#OOOUOOOO#OOOOO
+OOOOOOO##OOOOUOO
+O##OOOO##OOOO##O
+OOOOOOOOOOOOOOOO
+OFOOOUOOOO#OOOOO
+OOOOOO##OOOOOOOO

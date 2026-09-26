@@ -1,15 +1,50 @@
-"""Approved art for the other water-world enemies (pike, heron, whale).
+"""Approved art of the water-world characters: snake head, pike, heron, whale.
 
-Not used in Build 1 — ported now from the mockup so Build 2 can plug the
-enemies in directly. ``K`` is the pixel unit (supersampling x cell scale).
+Pike / heron / whale are ported from the mockup but not wired yet
+(TODO(water agent)). ``K`` is the pixel unit (supersampling x cell scale).
 """
 from __future__ import annotations
 
 import math
+from functools import lru_cache
 
 import pygame as pg
 
-from .common import heart
+from ....art.common import heart, render_ss
+
+
+# ---------------------------------------------------------------- snake
+SNAKE_SHADOW = (20, 60, 70)
+SNAKE_BODY = (90, 120, 40)
+SNAKE_BELLY = (150, 180, 60)
+SNAKE_SPOT = (230, 200, 70)
+SNAKE_HEAD = (110, 140, 45)
+
+
+@lru_cache(maxsize=8)
+def snake_head_sprite(k: float, tongue: bool) -> pg.Surface:
+    """Head facing right (+x); rotate at draw time."""
+    size = int(64 * k)
+
+    def draw(s: pg.Surface, ss: float) -> None:
+        K = k * ss
+        hx, hy = s.get_width() / 2, s.get_height() / 2
+        dx, dy, px, py = 1.0, 0.0, 0.0, 1.0
+        if tongue:
+            tip = (hx + 24 * K, hy)
+            w = max(1, int(2 * K))
+            pg.draw.line(s, (220, 50, 60), (hx + 13 * K, hy), tip, w)
+            pg.draw.line(s, (220, 50, 60), tip, (tip[0] + 5 * K, tip[1] + 3 * K), w)
+            pg.draw.line(s, (220, 50, 60), tip, (tip[0] + 5 * K, tip[1] - 3 * K), w)
+        pg.draw.ellipse(s, SNAKE_HEAD, (hx - 14 * K, hy - 14 * K, 28 * K, 28 * K))
+        pg.draw.ellipse(s, (130, 160, 60), (hx - 6 * K, hy - 8 * K, 14 * K, 16 * K))
+        for sgn in (-1, 1):
+            ex, ey = hx + dx * 4 * K + px * sgn * 7 * K, hy + dy * 4 * K + py * sgn * 7 * K
+            pg.draw.circle(s, (255, 235, 90), (ex, ey), 4 * K)
+            pg.draw.line(s, (20, 20, 20), (ex - 2 * K, ey), (ex + 2 * K, ey), max(1, int(2 * K)))
+        for sgn in (-1, 1):   # nostrils
+            pg.draw.circle(s, (60, 80, 30), (hx + 11 * K, hy + sgn * 3 * K), 1.2 * K)
+    return render_ss((size, size), draw)
 
 
 def draw_pike(s: pg.Surface, c: tuple[float, float], K: float, warn: bool = False) -> None:

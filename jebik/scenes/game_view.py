@@ -1,52 +1,33 @@
-"""Renders a running :class:`~jebik.game.world.World` (field, actors)."""
+"""Renders a running :class:`~jebik.game.world.World` (field, actors).
+
+World-specific drawing is delegated to the world's art package
+(:func:`~jebik.art.world_art.art_for`): its :class:`FieldRenderer` draws the
+backdrop, tiles and exit; registered :class:`EnemyArt` classes draw enemies.
+Draw order: static -> "under" enemies -> rings -> tiles -> grid ->
+telegraphs -> exit -> "ground" enemies -> resting flies -> frog -> flying
+flies -> "air" enemies -> particles.
+"""
 from __future__ import annotations
 
 import math
-import random
 
 import pygame as pg
 
 from .. import config
-from ..art import backdrops, water
 from ..art.chars import fly_sprite, frog_shadow, frog_sprite, small_shadow
 from ..art.common import disc_sprite
-from ..art.snake_art import SnakeArt
+from ..art.enemy_art import EnemyArt, enemy_art_class
+from ..art.glow import additive_glow
+from ..art.world_art import art_for
 from ..game import frog as fs
+from ..game.enemy import AIR, GROUND, UNDER
 from ..game.flies import RESTING
 from ..game.grid import DIRS, Level
 from ..game.world import World
+from .layout import cell_size, field_rect
+from .telegraphs import draw_telegraph
 
-W, H = config.SCREEN_W, config.SCREEN_H
-_CACHE: dict[tuple[str, int], tuple[pg.Surface, list]] = {}
-
-
-def cell_size(level: Level) -> int:
-    fit_w = (W - 2 * config.FIELD_MARGIN_X) // level.width
-    fit_h = (H - config.HUD_H - 2 * config.FIELD_MARGIN_Y) // level.height
-    cs = min(config.MAX_CELL, fit_w, fit_h)
-    return max(40, cs - cs % 2)
-
-
-def field_rect(level: Level, cs: int) -> pg.Rect:
-    fw, fh = level.width * cs, level.height * cs
-    return pg.Rect((W - fw) // 2, config.HUD_H + (H - config.HUD_H - fh) // 2, fw, fh)
-
-
-def build_static(level: Level) -> tuple[pg.Surface, list]:
-    """Backdrop + field water (rendered once per level and cached)."""
-    cs = cell_size(level)
-    key = (level.id + str(hash(level.pads)), cs)
-    if key not in _CACHE:
-        rect = field_rect(level, cs)
-        holes = set(level.holes)
-        static = backdrops.pond_backdrop(rect, seed=21 + level.seed)
-        static.blit(water.water_background(level.width, level.height, cs, holes, seed=level.seed + 4),
-                    rect.topleft)
-        k = cs / 64
-        pads = [(spec, water.pad_frames(spec, k))
-                for spec in water.pad_layout(level.width, level.height, cs, holes, seed=level.seed + 4)]
-        _CACHE[key] = (static, pads)
-    return _CACHE[key]
+__all__ = ["GameView", "cell_size", "field_rect"]
 
 
 class GameView:
@@ -55,20 +36,16 @@ class GameView:
         self.cs = cell_size(level)
         self.k = self.cs / 64
         self.field = field_rect(level, self.cs)
-        self.static, self.pads = build_static(level)
-        self.pad_index = {spec.cell: i for i, (spec, _) in enumerate(self.pads)}
-        self.dips: dict[tuple[int, int], float] = {}
-        self.snake_art = SnakeArt(self.cs)
-        self.exit_img = water.exit_sprite(self.k * 1.3)
-        self.exit_glow = water.additive_glow(78 * self.k, (150, 130, 70))
-        self.firefly_glow = water.additive_glow(30 * self.k, (170, 150, 40))
+        self.art = art_for(level.world)
+        self.field_art = self.art.field(level, self.cs, self.field)
+        self.static = self.field_art.static()
+        self.enemy_art: dict[str, EnemyArt] = {}
+        self.firefly_glow = additive_glow(30 * self.k, (170, 150, 40))
         self.exit_t: float | None = None
         self.land_t = 1.0
         self.land_strength = 1.0
         self.t = 0.0
         self.grid = self._grid_surface()
-        self.rng = random.Random()
-        self.ambient_t = 0.5
 
     # ------------------------------------------------------------ helpers
     def to_px(self, pos: tuple[float, float]) -> tuple[float, float]:
@@ -77,14 +54,21 @@ class GameView:
 
     def _grid_surface(self) -> pg.Surface:
         g = pg.Surface(self.field.size, pg.SRCALPHA)
+        col = self.field_art.grid_color
         for x in range(1, self.level.width):
-            pg.draw.line(g, (255, 255, 255, 55), (x * self.cs, 0), (x * self.cs, self.field.h), 1)
+            pg.draw.line(g, col, (x * self.cs, 0), (x * self.cs, self.field.h), 1)
         for y in range(1, self.level.height):
-            pg.draw.line(g, (255, 255, 255, 55), (0, y * self.cs), (self.field.w, y * self.cs), 1)
+            pg.draw.line(g, col, (0, y * self.cs), (self.field.w, y * self.cs), 1)
         return g
 
+    def art_of(self, kind: str) -> EnemyArt:
+        art = self.enemy_art.get(kind)
+        if art is None:
+            art = self.enemy_art[kind] = enemy_art_class(kind)(self)
+        return art
+
     def dip(self, cell: tuple[int, int], strength: float = 1.0) -> None:
-        self.dips[cell] = 0.0
+        self.field_art.dip(cell, strength)
         self.land_t = 0.0
         self.land_strength = strength
 
@@ -92,92 +76,67 @@ class GameView:
         self.exit_t = 0.0
 
     # ------------------------------------------------------------ update
-    def update(self, dt: float, effects) -> None:
+    def update(self, dt: float, effects, world: World | None = None) -> None:
         self.t += dt
         self.land_t += dt
         if self.exit_t is not None:
             self.exit_t += dt
-        for c in list(self.dips):
-            self.dips[c] += dt
-            if self.dips[c] > 0.5:
-                del self.dips[c]
-        self.ambient_t -= dt
-        if self.ambient_t <= 0:        # lazy ripples on open water
-            self.ambient_t = self.rng.uniform(0.35, 0.9)
-            holes = sorted(self.level.holes)
-            if holes and self.rng.random() < 0.75:
-                cx, cy = self.rng.choice(holes)
-                pos = (cx + self.rng.uniform(-.25, .25), cy + self.rng.uniform(-.25, .25))
-            else:
-                pos = (self.rng.uniform(-.5, self.level.width - .5), self.rng.uniform(-.5, self.level.height - .5))
-            x, y = self.to_px(pos)
-            effects.ring(x, y, 3 * self.k, 20 * self.k, 1.6, (185, 230, 240), 2, 0.45)
+        self.field_art.tick(dt)
+        if world is not None:
+            self.field_art.update(dt, world, effects, self)
+        for art in self.enemy_art.values():
+            art.update(dt)
 
     # ------------------------------------------------------------ draw
     def draw(self, surf: pg.Surface, world: World, effects, show_grid: bool) -> None:
-        ox, oy = effects.shake_offset()
+        off = effects.shake_offset()
+        ox, oy = off
         if ox or oy:
-            surf.fill(config.C_POND_BOTTOM)
-        surf.blit(self.static, (ox, oy))
-        fx, fy = self.field.x + ox, self.field.y + oy
-        effects.draw_rings(surf, (ox, oy))
+            surf.fill(self.field_art.fill)
+        surf.blit(self.static, off)
+        self._draw_enemies(surf, world, UNDER, off)
+        effects.draw_rings(surf, off)
         exit_cell = world.exit_cell if self.exit_t is not None else None
-        for spec, frames in self.pads:
-            if spec.cell == exit_cell:
-                continue
-            ph = math.sin(self.t * 0.9 + spec.phase)
-            img = frames[min(len(frames) - 1, int((ph + 1) / 2 * len(frames)))]
-            if spec.cell in self.dips:
-                d = self.dips[spec.cell]
-                sc = 1 - 0.09 * math.sin(min(1.0, d / 0.5) * math.pi) * (1 - d / 0.5 * 0.5)
-                img = pg.transform.smoothscale(img, (int(img.get_width() * sc), int(img.get_height() * sc)))
-            surf.blit(img, img.get_rect(center=(round(fx + spec.cx), round(fy + spec.cy))))
+        self.field_art.draw_tiles(surf, world, off, skip=exit_cell)
         if show_grid:
-            surf.blit(self.grid, (fx, fy))
-        if exit_cell is not None:
-            self._draw_exit(surf, exit_cell, (ox, oy))
+            surf.blit(self.grid, (self.field.x + ox, self.field.y + oy))
         for enemy in world.enemies:
-            pts = [self.to_px(p) for p in enemy.segment_positions()]
-            pts = [(x + ox, y + oy) for x, y in pts]
-            self.snake_art.draw(surf, pts, enemy.head_dir(), enemy.anim)
+            tgs = enemy.telegraphs()
+            if tgs:
+                art = self.art_of(enemy.kind)
+                for tg in tgs:
+                    if not art.draw_telegraph(surf, enemy, tg, off):
+                        draw_telegraph(surf, self, tg, off)
+        if exit_cell is not None:
+            x, y = self.to_px(exit_cell)
+            self.field_art.draw_exit(surf, (x + ox, y + oy), self.exit_t or 0.0)
+        self._draw_enemies(surf, world, GROUND, off)
         frog = world.frog
         high = frog.state == fs.SUPER
         caught_id = frog.tongue.fly_id if frog.tongue else None
         for fly in world.flies.flies:
             if fly.state == RESTING and fly.id != caught_id:
-                self._draw_fly(surf, fly, (ox, oy), False)
+                self._draw_fly(surf, fly, off, False, world)
         if not high:
-            self._draw_frog(surf, world, (ox, oy))
+            self._draw_frog(surf, world, off)
         for fly in world.flies.flies:
             if fly.state != RESTING or fly.id == caught_id:
-                self._draw_fly(surf, fly, (ox, oy), fly.id == caught_id)
+                self._draw_fly(surf, fly, off, fly.id == caught_id, world)
         if high:
-            self._draw_frog(surf, world, (ox, oy))
-        effects.draw_particles(surf, (ox, oy))
+            self._draw_frog(surf, world, off)
+        self._draw_enemies(surf, world, AIR, off)
+        effects.draw_particles(surf, off)
 
-    def _draw_exit(self, surf: pg.Surface, cell, off) -> None:
-        cx, cy = self.to_px(cell)
-        cx, cy = cx + off[0], cy + off[1]
-        t = self.exit_t or 0.0
-        pulse = (0.72 + 0.28 * math.sin(self.t * 3)) * min(1.0, t / 0.4)
-        glow = self.exit_glow[max(0, min(len(self.exit_glow) - 1, int(pulse * len(self.exit_glow)) - 1))]
-        surf.blit(glow, glow.get_rect(center=(round(cx), round(cy))), special_flags=pg.BLEND_RGB_ADD)
-        for i in range(6):                      # slow sparkles circling the lotus
-            a = self.t * 0.8 + i * math.pi / 3
-            rr = self.cs * (0.62 + 0.06 * math.sin(self.t * 2 + i))
-            sp = disc_sprite(max(1.0, round(2.4 * self.k * 2) / 2), (255, 245, 200))
-            surf.blit(sp, sp.get_rect(center=(round(cx + math.cos(a) * rr), round(cy + math.sin(a) * rr * 0.8))))
-        if t < 0.5:
-            u = t / 0.5
-            sc = max(0.05, 1 + math.sin(u * math.pi * 1.4) * (1 - u) * 0.5 - (1 - u) * 0.6)
-            img = pg.transform.rotozoom(self.exit_img, (1 - u) * 40, sc)
-        else:
-            img = self.exit_img
-        surf.blit(img, img.get_rect(center=(round(cx), round(cy))))
+    def _draw_enemies(self, surf: pg.Surface, world: World, layer: str, off) -> None:
+        for enemy in world.enemies:
+            if enemy.layer == layer and enemy.alive:
+                self.art_of(enemy.kind).draw(surf, enemy, off)
 
-    def _draw_fly(self, surf: pg.Surface, fly, off, caught: bool) -> None:
+    def _draw_fly(self, surf: pg.Surface, fly, off, caught: bool, world: World) -> None:
         k = self.k
         x, y = self.to_px(fly.pos)
+        if fly.state == RESTING and not caught:        # riding a moving row
+            x += world.tiles.row_offset(fly.cell[1]) * self.cs
         x, y = x + off[0], y + off[1]
         scale = 1.15 if fly.kind == "dragon" else 1.0
         if caught:
@@ -224,7 +183,8 @@ class GameView:
             return
         k = self.k
         x, y = self.to_px(frog.pos())
-        x, y = x + off[0], y + off[1]
+        carry = world.tiles.row_offset(frog.cell[1]) * self.cs if frog.grounded else 0.0
+        x, y = x + off[0] + carry, y + off[1]
         h = frog.height()
         lift = h * (0.3 if frog.state == fs.HOP else 0.85) * self.cs
         sh = frog_shadow(k)
@@ -259,7 +219,7 @@ class GameView:
             img = img.copy()
             img.set_alpha(80)
         if frog.tongue is not None:
-            self._draw_tongue(surf, frog, off)
+            self._draw_tongue(surf, frog, (off[0] + carry, off[1]))
         surf.blit(img, img.get_rect(center=(round(x), round(y - lift))))
 
     def _draw_tongue(self, surf: pg.Surface, frog, off) -> None:

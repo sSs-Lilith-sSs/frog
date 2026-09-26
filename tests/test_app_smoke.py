@@ -127,13 +127,18 @@ def test_win_flow_saves_progress_and_shows_win(app):
             break
     frames(app, 2.0)
     assert top_name(app) == "WinScene"
+    from jebik import progression
     prog = app.profile.diff("ezzz")
-    assert prog.record("1-1").completed and prog.is_unlocked("1-2")
+    assert prog.record("1-1").completed
+    assert progression.is_unlocked(app.profile, "ezzz", "2-1")     # 1-2..1-4 not built yet
     assert save.load().profile.diff("ezzz").record("1-1").stars >= 1
-    # "Next" -> 1-2 is not built yet -> level select
+    # "Next" -> the next playable level (2-1), its world story plays first
     app.scenes.top.next()
     frames(app, 0.5)
-    assert top_name(app) == "LevelSelectScene"
+    assert top_name(app) == "CutsceneScene"
+    key(app, pg.K_ESCAPE)                         # skip the story
+    frames(app, 0.5)
+    assert top_name(app) == "GameScene" and app.scenes.top.level_id == "2-1"
 
 
 def test_lose_flow_and_restart(app):

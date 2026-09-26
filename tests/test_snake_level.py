@@ -5,7 +5,7 @@ from conftest import make_level, make_world, run
 
 from jebik import config
 from jebik.game.grid import LevelError, load_level, parse_level
-from jebik.game.snake import Snake
+from jebik.worlds.water.snake import Snake
 from jebik.game.world import World
 
 
@@ -90,7 +90,7 @@ def test_respawn_avoids_snake():
     run(w, config.HOP_TIME + config.SPLASH_TIME + 0.1)
     cell = w.frog.cell
     assert cell in lv.pads
-    assert abs(cell[0] - 0) + abs(cell[1] - 0) >= config.SNAKE_SAFE_RESPAWN_DIST
+    assert abs(cell[0] - 0) + abs(cell[1] - 0) >= config.SAFE_RESPAWN_DIST
 
 
 def test_level_1_1_file_parses():
@@ -111,7 +111,7 @@ def test_parse_errors():
     with pytest.raises(LevelError):
         parse_level("---\nOOO\nOOO")                       # no frog
     with pytest.raises(LevelError):
-        parse_level("---\nFOX")                            # unknown char
+        parse_level("---\nFOZ")                            # unknown char
     with pytest.raises(LevelError):
         parse_level("size: 4x1\n---\nFOO")                 # size mismatch
 

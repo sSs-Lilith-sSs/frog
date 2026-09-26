@@ -8,8 +8,9 @@ import pygame as pg
 from .. import config, i18n
 from ..art.chars import (fly_sprite, frog_shadow, frog_sprite)
 from ..art.common import (draw_text, heart_sprite, rounded_panel, triangle_sprite, wrap)
-from ..art.snake_art import SnakeArt
-from ..art.water import exit_sprite, glow_sprite, pad_sprite
+from ..art.glow import glow_sprite
+from ..worlds.water.art.pads import exit_sprite, pad_sprite
+from ..worlds.water.art.snake_art import SnakeArt
 from .common import H, W, MenuScene, draw_panel
 
 CARD_W, CARD_H, GAP = 850, 190, 22

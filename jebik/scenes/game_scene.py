@@ -1,18 +1,23 @@
-"""Gameplay scene: input -> World, World events -> view/effects/audio."""
+"""Gameplay scene: input -> World, World events -> view/effects/audio.
+
+TOBI PIZDA: a hit / fall / extra fly restarts the level automatically after a
+short «Ой!»; running out of time shows the lose panel.
+"""
 from __future__ import annotations
 
 import pygame as pg
 
-from .. import config, i18n
+from .. import config, i18n, progression
 from ..art.common import heart_sprite
 from ..game import events as ev
 from ..game.grid import load_level
 from ..game.rules import rules_for
 from ..game.world import LOST, WON, World
+from ..worlds import world_by_id
 from .base import Scene
 from .effects import Effects
 from .game_view import GameView
-from .hud import Hud
+from .hud import Hud, exit_hint
 from .touch_hud import draw_touch_buttons, make_touchpad
 
 DIR_KEYS = {pg.K_UP: 0, pg.K_w: 0, pg.K_RIGHT: 1, pg.K_d: 1,
@@ -26,7 +31,9 @@ class GameScene(Scene):
         super().__init__(app)
         self.level_id = level_id
         self.level = load_level(level_id)
-        self.world = World(self.level, rules_for(app.difficulty), seed=seed)
+        self.seed = seed
+        self.world = World(self.level, rules_for(app.difficulty, self.level), seed=seed)
+        self.theme = world_by_id(self.level.world).theme
         self.view = GameView(self.level)
         self.effects = Effects()
         profile = app.profile
@@ -37,8 +44,9 @@ class GameScene(Scene):
         self.new_best = False
         self.overlay_shown = False
         self.touch = make_touchpad()
+        self.restart_timer: float | None = None       # TOBI PIZDA auto restart
         self.effects.banner(i18n.t("game.go", n=self.level.flies_needed), "",
-                            (255, 255, 255), (40, 90, 60), life=1.8, size=96)
+                            (255, 255, 255), self.theme.text_outline, life=1.8, size=96)
 
     # ------------------------------------------------------------ lifecycle
     @property
@@ -52,6 +60,12 @@ class GameScene(Scene):
 
     def restart(self) -> None:
         self.app.scenes.replace(GameScene(self.app, self.level_id))
+
+    @property
+    def auto_restart(self) -> bool:
+        """TOBI PIZDA: any damage restarts at once (time-out shows the panel)."""
+        w = self.world
+        return w.rules.one_hit and w.state == LOST and w.lose_reason != "timeout"
 
     def pause(self) -> None:
         if self.world.state == "playing" and not self.overlay_shown:
@@ -129,9 +143,15 @@ class GameScene(Scene):
         self._auto_repeat(dt)
         self.world.update(dt)
         self._handle_events(self.world.drain_events())
-        self.view.update(dt, self.effects)
+        self.view.update(dt, self.effects, self.world)
         self.effects.update(dt)
         self.hud.update(dt)
+        if self.restart_timer is not None:
+            self.restart_timer -= dt
+            if self.restart_timer <= 0:
+                self.restart_timer = None
+                self.restart()
+            return
         if self.world.show_result and not self.overlay_shown:
             self.overlay_shown = True
             from .overlays import LoseScene, WinScene
@@ -144,6 +164,8 @@ class GameScene(Scene):
         audio, fx, view, k = self.app.audio, self.effects, self.view, self.view.k
         kinds = {e.kind for e in events}
         for e in events:
+            if view.field_art.on_event(e, view, fx):
+                continue
             if e.kind == ev.HOP:
                 audio.play("jump")
                 x, y = view.to_px(self.world.frog.hop_from)
@@ -177,7 +199,8 @@ class GameScene(Scene):
                 fx.shake(8)
             elif e.kind == ev.FULL:
                 audio.play("full")
-                fx.banner(i18n.t("game.full"), i18n.t("game.full_sub"), (255, 225, 110), (120, 60, 20))
+                sub = exit_hint(self.level.world) if self.world.exit_ready else i18n.t("game.full_boss")
+                fx.banner(i18n.t("game.full"), sub, (255, 225, 110), (120, 60, 20))
             elif e.kind == ev.EXIT_SPAWN:
                 x, y = view.to_px(e.cell)
                 view.show_exit()
@@ -212,11 +235,17 @@ class GameScene(Scene):
                 audio.play("powerup")
                 x, y = view.to_px(e.pos)
                 fx.popup(i18n.t("game.long_tongue"), x, y - 30 * k, (255, 245, 150), 34, (120, 80, 20))
+            elif e.kind == ev.TIME_BONUS:
+                audio.play("powerup")
+                x, y = view.to_px(e.pos)
+                fx.popup(i18n.t("game.time_bonus", n=int(e.value)), x, y - 30 * k, (255, 230, 120), 42,
+                         (120, 60, 20))
+            elif e.kind in (ev.BOSS_HIT, ev.BOSS_DEFEATED):
+                self._on_boss(e)
             elif e.kind == ev.WIN:
                 self._on_win()
             elif e.kind == ev.LOSE:
-                audio.play("lose")
-                audio.duck_music(0.2, 3.0)
+                self._on_lose(e.value)
 
     def _on_eat(self, e: ev.Event, overeat: bool) -> None:
         kind, value = e.value
@@ -232,7 +261,34 @@ class GameScene(Scene):
         self.app.audio.play("eat")
         if not overeat:
             fx.popup(f"+{value}", x, y - 26 * k, (255, 230, 120) if value > 1 else (255, 255, 255),
-                     46 if value > 1 else 40, (40, 70, 40))
+                     46 if value > 1 else 40, self.theme.text_outline)
+
+    def _on_boss(self, e: ev.Event) -> None:
+        k, fx = self.view.k, self.effects
+        x, y = self.view.to_px(e.pos)
+        boss = self.world.boss
+        if e.kind == ev.BOSS_HIT:
+            self.app.audio.play("hit")
+            fx.shake(14)
+            fx.burst(x, y, (255, 240, 150), n=16, speed=320 * k, size=6 * k, life=0.8, kind="star")
+            key = boss.hit_text_key if boss else None
+            if key:
+                fx.popup(i18n.t(key), x, y - 40 * k, (255, 245, 120), 72, (150, 30, 60), life=1.6)
+        else:
+            self.app.audio.play("win")
+            fx.burst(x, y, (255, 200, 120), n=30, speed=400 * k, size=7 * k, life=1.2, kind="star")
+            fx.banner(i18n.t("game.boss_defeated"), exit_hint(self.level.world) if self.world.full else "",
+                      (255, 225, 110), (120, 60, 20))
+
+    def _on_lose(self, reason: str) -> None:
+        audio = self.app.audio
+        audio.play("lose")
+        audio.duck_music(0.2, 3.0)
+        if self.auto_restart:
+            self.overlay_shown = True
+            self.restart_timer = config.TOBI_RESTART_DELAY
+            self.effects.banner(i18n.t("game.oops"), i18n.t("game.again"), (255, 150, 150),
+                                (120, 30, 40), life=config.TOBI_RESTART_DELAY + 0.3, size=120)
 
     def _on_win(self) -> None:
         audio = self.app.audio
@@ -246,6 +302,7 @@ class GameScene(Scene):
         profile = self.app.profile
         if res and profile:
             self.new_best = profile.record_result(res.difficulty, res.level_id, res.score, res.stars, res.time)
+            progression.refresh_unlocks(profile)
             self.app.persist()
 
     # ------------------------------------------------------------ draw

@@ -1,4 +1,4 @@
-"""Characters of the water world, ported from the approved ``chars.py``.
+"""Shared characters (frog, flies), ported from the approved ``chars.py``.
 
 Each ``draw_*`` works in a pixel unit ``K`` (= supersampling x cell scale);
 the ``*_sprite`` helpers render them once into cached, downscaled sprites.
@@ -168,37 +168,3 @@ def fly_sprite(k: float, kind: str, wing_up: bool = False) -> pg.Surface:
 def small_shadow(w: int, h: int, alpha: int = 70) -> pg.Surface:
     return render_ss((w, h), lambda s, ss: pg.draw.ellipse(
         s, (15, 50, 60, alpha), (0, 0, w * ss, h * ss)))
-
-
-# ---------------------------------------------------------------- snake
-SNAKE_SHADOW = (20, 60, 70)
-SNAKE_BODY = (90, 120, 40)
-SNAKE_BELLY = (150, 180, 60)
-SNAKE_SPOT = (230, 200, 70)
-SNAKE_HEAD = (110, 140, 45)
-
-
-@lru_cache(maxsize=8)
-def snake_head_sprite(k: float, tongue: bool) -> pg.Surface:
-    """Head facing right (+x); rotate at draw time."""
-    size = int(64 * k)
-
-    def draw(s: pg.Surface, ss: float) -> None:
-        K = k * ss
-        hx, hy = s.get_width() / 2, s.get_height() / 2
-        dx, dy, px, py = 1.0, 0.0, 0.0, 1.0
-        if tongue:
-            tip = (hx + 24 * K, hy)
-            w = max(1, int(2 * K))
-            pg.draw.line(s, (220, 50, 60), (hx + 13 * K, hy), tip, w)
-            pg.draw.line(s, (220, 50, 60), tip, (tip[0] + 5 * K, tip[1] + 3 * K), w)
-            pg.draw.line(s, (220, 50, 60), tip, (tip[0] + 5 * K, tip[1] - 3 * K), w)
-        pg.draw.ellipse(s, SNAKE_HEAD, (hx - 14 * K, hy - 14 * K, 28 * K, 28 * K))
-        pg.draw.ellipse(s, (130, 160, 60), (hx - 6 * K, hy - 8 * K, 14 * K, 16 * K))
-        for sgn in (-1, 1):
-            ex, ey = hx + dx * 4 * K + px * sgn * 7 * K, hy + dy * 4 * K + py * sgn * 7 * K
-            pg.draw.circle(s, (255, 235, 90), (ex, ey), 4 * K)
-            pg.draw.line(s, (20, 20, 20), (ex - 2 * K, ey), (ex + 2 * K, ey), max(1, int(2 * K)))
-        for sgn in (-1, 1):   # nostrils
-            pg.draw.circle(s, (60, 80, 30), (hx + 11 * K, hy + sgn * 3 * K), 1.2 * K)
-    return render_ss((size, size), draw)
