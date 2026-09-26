@@ -170,28 +170,36 @@ def _pedestal(bottom_text: float) -> list[tuple[float, float, float, float]]:
 
 
 @lru_cache(maxsize=1)
-def logo() -> pg.Surface:
-    z, ss = LOGO_ZOOM, 3
-    size = (int(W * z), int(H * z))
+def logo() -> tuple[pg.Surface, pg.Rect]:
+    """The monument, and its rect in the screen zoomed by LOGO_ZOOM about the centre."""
+    z, ss = LOGO_ZOOM, 2
     glyphs = _line_layout()
     boxes = _pedestal(max(y + h for _, _, y, h in glyphs))
 
-    def tr(x: float, y: float) -> tuple[float, float]:           # zoom about screen centre
-        return ((W / 2 + (x - W / 2) * z) * ss, (H / 2 + (y - H / 2) * z) * ss)
-    big = pg.Surface((size[0] * ss // 2, size[1] * ss // 2))        # half-res masks at ss
-    letters = pg.Surface((size[0] * ss, size[1] * ss))
-    base = pg.Surface((size[0] * ss, size[1] * ss))
+    def zc(x: float, y: float) -> tuple[float, float]:
+        return (W / 2 + (x - W / 2) * z, H / 2 + (y - H / 2) * z)
+    pts = [zc(gx, gy) for _, gx, gy, _ in glyphs] + [zc(gx + glyph(c)[1] * gh, gy + gh) for c, gx, gy, gh in glyphs]
+    pts += [zc(b[0], b[1]) for b in boxes] + [zc(b[2], b[3]) for b in boxes]
+    x0, y0 = min(p[0] for p in pts), min(p[1] for p in pts)
+    x1, y1 = max(p[0] for p in pts), max(p[1] for p in pts)
+    pad = int(DEPTH * z) + 10
+    crop = pg.Rect(int(x0) - pad, int(y0) - 10, int(x1 - x0) + pad + 20, int(y1 - y0) + pad + 20)
+
+    def tr(x: float, y: float) -> tuple[float, float]:
+        X, Y = zc(x, y)
+        return ((X - crop.x) * ss, (Y - crop.y) * ss)
+    letters = pg.Surface((crop.w * ss, crop.h * ss))
+    base = pg.Surface((crop.w * ss, crop.h * ss))
     for ch, gx, gy, h in glyphs:
         ops, _ = glyph(ch)
         for op, poly in ops:
-            pts = [tr(gx + px * h, gy + py * h) for px, py in poly]
-            pg.draw.polygon(letters, (255, 255, 255) if op == "+" else (0, 0, 0), pts)
-    for x0, y0, x1, y1 in boxes:
-        pg.draw.polygon(base, (255, 255, 255), [tr(x0, y0), tr(x1, y0), tr(x1, y1), tr(x0, y1)])
-    del big
-    ml = pg.surfarray.array_red(pg.transform.smoothscale(letters, size)).astype(np.float32) / 255
-    mb = pg.surfarray.array_red(pg.transform.smoothscale(base, size)).astype(np.float32) / 255
-    return _extrude(ml, mb, boxes, glyphs, z)
+            pg.draw.polygon(letters, (255, 255, 255) if op == "+" else (0, 0, 0),
+                            [tr(gx + px * h, gy + py * h) for px, py in poly])
+    for bx0, by0, bx1, by1 in boxes:
+        pg.draw.polygon(base, (255, 255, 255), [tr(bx0, by0), tr(bx1, by0), tr(bx1, by1), tr(bx0, by1)])
+    ml = pg.surfarray.array_red(pg.transform.smoothscale(letters, crop.size)).astype(np.float32) / 255
+    mb = pg.surfarray.array_red(pg.transform.smoothscale(base, crop.size)).astype(np.float32) / 255
+    return _extrude(ml, mb, boxes, glyphs, z, crop), crop
 
 
 def _normals(mask: np.ndarray, r: int) -> tuple[np.ndarray, np.ndarray]:
@@ -201,13 +209,13 @@ def _normals(mask: np.ndarray, r: int) -> tuple[np.ndarray, np.ndarray]:
     return -gx / n * np.clip(n * r * 2, 0, 1), -gy / n * np.clip(n * r * 2, 0, 1)
 
 
-def _extrude(ml: np.ndarray, mb: np.ndarray, boxes, glyphs, z: float) -> pg.Surface:
+def _extrude(ml: np.ndarray, mb: np.ndarray, boxes, glyphs, z: float, crop: pg.Rect) -> pg.Surface:
     mask = np.maximum(ml, mb)
     w, h = mask.shape
     nx, ny = _normals(mask, 3)
     # side walls: left faces catch the dusk light, undersides stay dark
     lit = 0.28 + 0.62 * np.clip(-nx, 0, 1) + 0.12 * np.clip(-ny, 0, 1)
-    ys = np.linspace(0, 1, h, dtype=np.float32)[None, :]
+    ys = np.linspace(0, 1, h, dtype=np.float32)[None, :]              # 0 top .. 1 bottom of the crop
     side_base = np.where((mb > ml)[..., None], np.array((104, 64, 26), np.float32),
                          np.array((136, 84, 24), np.float32))
     side = side_base * (lit * (1.08 - 0.25 * ys))[..., None]
@@ -224,14 +232,14 @@ def _extrude(ml: np.ndarray, mb: np.ndarray, boxes, glyphs, z: float) -> pg.Surf
     for d in range(depth, 0, -1):
         band = min(bands - 1, int(d / depth * bands))
         out.blit(layers[band], (round(EXTRUDE[0] * d), round(EXTRUDE[1] * d)))
-    out.blit(_front(ml, mb, mask, boxes, glyphs, z), (0, 0))
+    out.blit(_front(ml, mb, mask, boxes, glyphs, z, crop), (0, 0))
     return out
 
 
-def _front(ml, mb, mask, boxes, glyphs, z: float) -> pg.Surface:
+def _front(ml, mb, mask, boxes, glyphs, z: float, crop: pg.Rect) -> pg.Surface:
     w, h = mask.shape
-    xs = np.arange(w, dtype=np.float32)[:, None]
-    ys = np.arange(h, dtype=np.float32)[None, :]
+    xs = np.arange(w, dtype=np.float32)[:, None] + crop.x          # zoomed screen coords
+    ys = np.arange(h, dtype=np.float32)[None, :] + crop.y
     # gold: per text line, bright at the top of the letters -> deep amber at the bottom
     t = np.zeros((w, h), np.float32)
     for _, _, gy, gh in glyphs:
@@ -255,7 +263,7 @@ def _front(ml, mb, mask, boxes, glyphs, z: float) -> pg.Surface:
     bev = np.clip(-nx * 0.55 - ny * 0.85, -1, 1)
     edge = 1 - blur(mask, 4)
     rgb = rgb * (1 + (0.55 * bev * np.clip(edge * 2.2, 0, 1)))[..., None]
-    sheen = np.exp(-(((xs * 0.45 + ys) - h * 0.42) / (h * 0.06)) ** 2)           # diagonal glint
+    sheen = np.exp(-(((xs * 0.45 + ys) - (crop.y + h * 0.3 + crop.centerx * 0.45)) / (h * 0.06)) ** 2)
     rgb = rgb + sheen[..., None] * np.array((60, 50, 25), np.float32) * (mb <= ml)[..., None]
     rim = np.clip((0.5 - np.abs(mask - 0.5)) * 2, 0, 1)
     rgb = rgb * (1 - 0.45 * rim)[..., None]
@@ -263,8 +271,3 @@ def _front(ml, mb, mask, boxes, glyphs, z: float) -> pg.Surface:
     pg.surfarray.blit_array(s, np.clip(rgb, 0, 255).astype(np.uint8))
     pg.surfarray.pixels_alpha(s)[...] = (mask * 255).astype(np.uint8)
     return s
-
-
-def logo_box() -> pg.Rect:
-    """Bounding box of the monument (incl. extrusion) inside :func:`logo`'s surface."""
-    return logo().get_bounding_rect(min_alpha=8)
