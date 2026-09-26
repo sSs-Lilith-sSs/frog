@@ -9,7 +9,7 @@ import pygame as pg
 
 from ....art.common import render_ss
 from ....art.enemy_art import EnemyArt, register_enemy_art
-from ..jesus import bezier
+from ..jesus import bezier, figure_scale
 from .birds import blit_c
 from .field import cloud_sprite
 from .jesus_figure import HALO_Y, HEAD_Y, boss_cloud, draw_jesus, halo_flat, halo_ring, palm_rays
@@ -66,7 +66,7 @@ class JesusArt(EnemyArt):
     def __init__(self, view):
         super().__init__(view)
         lv = view.level
-        self.u = round(max(0.55, min(1.3, lv.top_reserve / 167 if lv.top_reserve else .7)), 3)
+        self.u = figure_scale(max(lv.top_reserve, 120))       # same as the logic (halo home)
         self.ru = round(1.25 * self.cs / 50, 3)           # halo ring size on the field
         self.rot: dict = {}
         self.layer: pg.Surface | None = None
@@ -110,9 +110,9 @@ class JesusArt(EnemyArt):
         img, palm_offs = figure_sprite(u, arms, face)
         palms = [(cx + dx, cy + dy) for dx, dy in palm_offs]
         glow(surf, cx, cy - 70 * u, 120 * u, (255, 245, 210), 90)
-        if boss.state == "hit":
-            b = burst_img(int(46 * u))
-            blit_c(surf, b, cx - 70 * u, cy - 120 * u)
+        if boss.state == "hit":                            # comic burst behind his head
+            b = burst_img(int(36 * u))
+            blit_c(surf, b, cx - 58 * u, cy + (HEAD_Y + 12) * u)
         surf.blit(img, (round(cx - img.get_width() / 2), round(cy - FIG_BASE * u)))
         if boss.state == "beams" and boss.beam_cells:
             self._palm_beams(surf, boss, palms, off)

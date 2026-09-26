@@ -8,7 +8,6 @@ import numpy as np
 import pygame as pg
 
 from .... import config
-from ....art.common import lerp
 from .paint import alpha_circle, alpha_ellipse, vnoise
 
 W, H = config.SCREEN_W, config.SCREEN_H
@@ -96,34 +95,51 @@ def fence_col(S, x, y0, y1, q, gap=None):
         pg.draw.circle(S, (150, 105, 65), (x * q, a * q), 3 * q, max(1, q))
 
 
+class Placed:
+    """Decor already placed, bucketed on a coarse grid (fast overlap checks)."""
+    CELL = 96                     # > the largest pr + r + 6 (40 + 40 + 6)
+
+    def __init__(self) -> None:
+        self.grid: dict[tuple[int, int], list[tuple[float, float, float]]] = {}
+
+    def append(self, item: tuple[float, float, float]) -> None:
+        x, y, _ = item
+        self.grid.setdefault((int(x // self.CELL), int(y // self.CELL)), []).append(item)
+
+    def hits(self, x: float, y: float, r: float) -> bool:
+        gx, gy = int(x // self.CELL), int(y // self.CELL)
+        for cx in (gx - 1, gx, gx + 1):
+            for cy in (gy - 1, gy, gy + 1):
+                for (px, py, pr) in self.grid.get((cx, cy), ()):
+                    if math.hypot(px - x, py - y) < pr + r + 6:
+                        return True
+        return False
+
+
 def meadow_backdrop(field: pg.Rect, seed=21):
     q = 2
     rnd = random.Random(seed)
-    S = pg.Surface((W * q, H * q))
-    for y in range(H):
-        pg.draw.rect(S, lerp((168, 212, 112), (126, 186, 88), y / H), (0, y * q, W * q, q))
-    # soft darker/lighter meadow patches + mowing stripes
-    arr = pg.surfarray.pixels3d(S)
-    n1 = vnoise(W * q, H * q, (14, 8), seed)
-    n2 = vnoise(W * q, H * q, (60, 34), seed + 1)
-    xs = np.arange(W * q, dtype=np.float32)[:, None]
-    ys = np.arange(H * q, dtype=np.float32)[None, :]
-    stripes = (np.sin((xs + ys * .6) / (70 * q)) > 0).astype(np.float32)
+    # gradient + soft darker/lighter meadow patches + mowing stripes: smooth
+    # shading, so it is computed at screen resolution and scaled up for the decor
+    ys1 = np.arange(H, dtype=np.float32)
+    top, bot = np.array((168, 212, 112), np.float32), np.array((126, 186, 88), np.float32)
+    grad = (top + (bot - top) * (ys1 / H)[:, None])[None, :, :]
+    n1 = vnoise(W, H, (14, 8), seed)
+    n2 = vnoise(W, H, (60, 34), seed + 1)
+    xs = np.arange(W, dtype=np.float32)[:, None]
+    stripes = (np.sin((xs + ys1[None, :] * .6) / 70) > 0).astype(np.float32)
     f = (0.9 + 0.16 * n1 + 0.06 * n2 + 0.03 * stripes)[..., None]
-    arr[...] = np.clip(arr.astype(np.float32) * f, 0, 255).astype(np.uint8)
-    del arr
+    base = pg.surfarray.make_surface(np.clip(grad * f, 0, 255).astype(np.uint8))
+    S = pg.transform.smoothscale(base, (W * q, H * q))
     frame = field.inflate(24, 24)
-    placed = []
+    placed = Placed()
 
     def free(x, y, r):
         if y - r < HB + 4:
             return False
         if frame.inflate(r * 2 + 10, r * 2 + 10).collidepoint(x, y):
             return False
-        for (px, py, pr) in placed:
-            if math.hypot(px - x, py - y) < pr + r + 6:
-                return False
-        return True
+        return not placed.hits(x, y, r)
 
     left_w = frame.left
     # fences

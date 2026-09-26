@@ -14,11 +14,19 @@ from .. import pike as pk
 from .characters import draw_heron, draw_pike
 
 
+LUNGE_SCALE = 1.45        # the leaping pike, relative to its 96x44 design size
+
+
 @lru_cache(maxsize=8)
 def pike_sprite(k: float) -> pg.Surface:
     """Pike leaping out of a splash ring, head toward +x."""
     w, h = int(96 * k), int(44 * k)
     return render_ss((w, h), lambda s, ss: draw_pike(s, (w * ss / 2 + 4 * k * ss, h * ss / 2), k * ss))
+
+
+@lru_cache(maxsize=8)
+def pike_sprite_left(k: float) -> pg.Surface:
+    return pg.transform.flip(pike_sprite(k), True, False)
 
 
 @lru_cache(maxsize=8)
@@ -39,13 +47,25 @@ class PikeArt(EnemyArt):
     def draw(self, surf: pg.Surface, enemy, off) -> None:
         if enemy.state != pk.LUNGE or enemy.water is None or enemy.target is None:
             return
+        # the lunge is drawn in the AIR layer (the pike leaps over the pad and
+        # the frog on it) and big enough to read as a real threat
         u = enemy.lunge_progress()
         out = min(1.0, math.sin(math.pi * u) * 1.35)
         wx, wy = enemy.water
         tx, ty = enemy.target
-        x, y = self.px((wx + (tx - wx) * out * 0.8, wy + (ty - wy) * out * 0.8 - 0.25 * math.sin(math.pi * u)), off)
-        ang = -math.degrees(math.atan2(ty - wy, tx - wx))
-        img = pg.transform.rotozoom(pike_sprite(self.k), ang, 0.85 + 0.15 * out)
+        x, y = self.px((wx + (tx - wx) * out * 0.8, wy + (ty - wy) * out * 0.8 - 0.35 * math.sin(math.pi * u)), off)
+        base = pike_sprite(round(self.k * LUNGE_SCALE, 3))           # head toward +x
+        if tx < wx:                                   # leaping left: mirror, don't turn belly-up
+            base = pike_sprite_left(round(self.k * LUNGE_SCALE, 3))
+            ang = -math.degrees(math.atan2(ty - wy, wx - tx))
+        else:
+            ang = -math.degrees(math.atan2(ty - wy, tx - wx))
+        if ty == wy:                                  # nose up on the way out, down on the way in
+            ang += (0.5 - u) * 40 * (1 if tx > wx else -1)
+        img = pg.transform.rotozoom(base, ang, 0.8 + 0.2 * out)
+        if u < 0.2 or u > 0.85:                       # breaking / re-entering the surface
+            a = min(u / 0.2, (1 - u) / 0.15) if u > 0.85 else u / 0.2
+            img.set_alpha(int(120 + 135 * max(0.0, min(1.0, a))))
         surf.blit(img, img.get_rect(center=(round(x), round(y))))
 
     def draw_telegraph(self, surf: pg.Surface, enemy, tg, off) -> bool:

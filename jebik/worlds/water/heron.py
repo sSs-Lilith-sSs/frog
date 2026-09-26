@@ -9,6 +9,7 @@ import math
 from typing import TYPE_CHECKING
 
 from ...game.enemy import AIR, Enemy, Telegraph, register_enemy
+from ...game.events import Event
 from ...game.grid import Cell, Spawn
 from . import config as wc
 
@@ -70,12 +71,14 @@ class Heron(Enemy):
             if self.timer <= 0 and frog is not None:
                 self.state, self.timer, self.target = SHADOW, wc.HERON_WARN, frog
                 self.pos = (float(frog[0]), float(frog[1]))
+                world.emit(Event("water.heron_shadow", cell=frog))
             return
         if self.timer > 0:
             return
         if self.state == SHADOW:
             self.state, self.timer = STRIKE, wc.HERON_STRIKE
             self.strikes += 1
+            world.emit(Event("water.heron_strike", cell=self.target))
         elif self.state == STRIKE:
             self.state, self.timer = LEAVE, wc.HERON_LEAVE
         else:

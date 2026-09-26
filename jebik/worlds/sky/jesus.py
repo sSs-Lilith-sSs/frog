@@ -31,6 +31,16 @@ if TYPE_CHECKING:
 Pos = tuple[float, float]
 
 
+def figure_scale(top_reserve: int) -> float:
+    """Size of his figure (art units -> px) so he fits between the HUD pill and the field."""
+    return round(max(0.55, min(1.3, (top_reserve - sc.JESUS_PILL_GAP) / sc.JESUS_FIGURE_H)), 3)
+
+
+def head_above_field(top_reserve: int) -> float:
+    """Pixels from the field's top edge up to the centre of his head."""
+    return sc.JESUS_CLOUD_GAP + sc.JESUS_HEAD_ABOVE_CLOUD * figure_scale(top_reserve)
+
+
 def bezier(p0: Pos, p1: Pos, p2: Pos, t: float) -> Pos:
     a, b, c = (1 - t) ** 2, 2 * (1 - t) * t, t * t
     return (a * p0[0] + b * p1[0] + c * p2[0], a * p0[1] + b * p1[1] + c * p2[1])
@@ -75,8 +85,9 @@ class Jesus(Boss):
         j.hp = int(spawn.param("hp", cls.max_hp))
         lv = world.level
         cs = lv.cell or 64
-        # his head, in cell units above the field (the art draws him around it)
-        j.pos = ((lv.width - 1) / 2, -(max(lv.top_reserve, 120) * 0.82) / cs - 0.5)
+        # his head, in cell units above the field (the art draws him around it):
+        # his cloud floats clear of the field frame
+        j.pos = ((lv.width - 1) / 2, -head_above_field(max(lv.top_reserve, 120)) / cs - 0.5)
         j.halo_pos = j.head_halo()
         return j
 
@@ -305,5 +316,6 @@ class Jesus(Boss):
         return tuple(c for c in self.beam_cells if (c[1] == idx if axis == "row" else c[0] == idx))
 
     def center(self) -> Pos:
-        """Popups («SASAT!») appear beside his head, below the HUD pill."""
-        return (self.pos[0] + 2.6, self.pos[1] + 1.3)
+        """Popups («SASAT!») appear to his right at cloud height: clear of his
+        figure and, while rising, of the HUD pill above."""
+        return (self.pos[0] + 4.2, self.pos[1] + 1.6)

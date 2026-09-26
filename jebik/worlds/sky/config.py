@@ -53,3 +53,9 @@ JESUS_REBUILD_WARN = 1.3
 JESUS_REBUILD = (4, 6)          # clouds that vanish / appear
 JESUS_REBUILD_HOLE = 10.0       # vanished clouds come back after this
 JESUS_HIT_TIME = 1.2            # «ouch» face
+
+# His place above the field (px; shared by the logic's halo home and the art).
+JESUS_CLOUD_GAP = 30            # field top -> bottom of his cloud (the 12 px frame + clear air)
+JESUS_PILL_GAP = 20             # part of top_reserve kept free under the HUD boss pill
+JESUS_FIGURE_H = 188            # halo top -> cloud bottom, in figure units (art/jesus_figure.py)
+JESUS_HEAD_ABOVE_CLOUD = 147.2  # head centre above the cloud bottom, figure units

@@ -5,7 +5,8 @@ World-specific drawing is delegated to the world's art package
 backdrop, tiles and exit; registered :class:`EnemyArt` classes draw enemies.
 Draw order: static -> "under" enemies -> rings -> tiles -> grid ->
 telegraphs -> exit -> "ground" enemies -> resting flies -> frog -> flying
-flies -> "air" enemies -> particles.
+flies -> "air" enemies -> particles. Under / ground enemies, their warnings and
+the water rings are clipped to the field frame (``EnemyArt.clipped``).
 """
 from __future__ import annotations
 
@@ -14,7 +15,7 @@ import math
 import pygame as pg
 
 from ..art.chars import fly_sprite, frog_shadow, frog_sprite, small_shadow
-from ..art.common import disc_sprite
+from ..art.common import clipped, disc_sprite
 from ..art.enemy_art import EnemyArt, enemy_art_class
 from ..art.glow import additive_glow
 from ..art.world_art import art_for
@@ -87,14 +88,20 @@ class GameView:
             art.update(dt)
 
     # ------------------------------------------------------------ draw
+    def field_clip(self, off: tuple[int, int] = (0, 0)) -> pg.Rect:
+        """The field frame's inner rect on screen (moves with the screen shake)."""
+        return self.field.move(off)
+
     def draw(self, surf: pg.Surface, world: World, effects, show_grid: bool) -> None:
         off = effects.shake_offset()
         ox, oy = off
         if ox or oy:
             surf.fill(self.field_art.fill)
         surf.blit(self.static, off)
-        self._draw_enemies(surf, world, UNDER, off)
-        effects.draw_rings(surf, off)
+        clip = self.field_clip(off)
+        with clipped(surf, clip):            # under the tiles: the pond / pit / abyss floor
+            self._draw_enemies(surf, world, UNDER, off)
+            effects.draw_rings(surf, off)
         exit_cell = world.exit_cell if self.exit_t is not None else None
         self.field_art.draw_tiles(surf, world, off, skip=exit_cell)
         if show_grid:
@@ -103,9 +110,10 @@ class GameView:
             tgs = enemy.telegraphs()
             if tgs:
                 art = self.art_of(enemy.kind)
-                for tg in tgs:
-                    if not art.draw_telegraph(surf, enemy, tg, off):
-                        draw_telegraph(surf, self, tg, off)
+                with clipped(surf, clip if art.clipped(enemy) else None):
+                    for tg in tgs:
+                        if not art.draw_telegraph(surf, enemy, tg, off):
+                            draw_telegraph(surf, self, tg, off)
         if exit_cell is not None:
             x, y = self.to_px(exit_cell)
             self.field_art.draw_exit(surf, (x + ox, y + oy), self.exit_t or 0.0)
@@ -127,9 +135,12 @@ class GameView:
         effects.draw_particles(surf, off)
 
     def _draw_enemies(self, surf: pg.Surface, world: World, layer: str, off) -> None:
+        clip = self.field_clip(off)
         for enemy in world.enemies:
             if enemy.layer == layer and enemy.alive:
-                self.art_of(enemy.kind).draw(surf, enemy, off)
+                art = self.art_of(enemy.kind)
+                with clipped(surf, clip if art.clipped(enemy) else None):
+                    art.draw(surf, enemy, off)
 
     def _draw_fly(self, surf: pg.Surface, fly, off, caught: bool, world: World) -> None:
         k = self.k

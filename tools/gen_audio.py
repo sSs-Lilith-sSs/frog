@@ -2,12 +2,13 @@
 """Synthesise the game's music and sound effects into jebik/assets/audio/.
 
 Port of the approved ``music.py`` sketch: three music tracks (A 8-bit,
-B cartoon ukulele+marimba, C swamp polka), the SFX set and the original
-studio-splash fanfare (``intro_fanfare.wav``). Music is written as
+B cartoon ukulele+marimba, C swamp polka), the soft cartoon SFX set (built
+with ``tools/synth.py``) and the original studio-splash fanfare
+(``intro_fanfare.wav``). Music is written as
 a seamless loop: notes ringing past the end are folded back onto the start
 and there is no fade-out.
 
-    python3 tools/gen_audio.py
+    python3 tools/gen_audio.py [out_dir]
 """
 from __future__ import annotations
 
@@ -16,6 +17,9 @@ import wave
 from pathlib import Path
 
 import numpy as np
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import synth as S  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "jebik" / "assets" / "audio"
@@ -194,19 +198,15 @@ def music_c() -> Track:
 
 
 # ---------------------------------------------------------------- sfx
+# Soft cartoon effects ("boing / plop / pop / gulp"), built with tools/synth.py:
+# sine partials with pitch glides, FM bells, filtered noise, a short room tail.
+# They use their own random generator so the music / fanfare stay bit-identical.
 def tt(d):
     return np.arange(int(d * SR)) / SR
 
 
-def sweep(f0, f1, d, kind="sin", decay=4.0):
-    t = tt(d)
-    fr = np.linspace(f0, f1, len(t))
-    ph = np.cumsum(fr) / SR
-    w = np.sin(2 * np.pi * ph) if kind == "sin" else np.where(ph % 1 < .5, 1., -1.)
-    return w * np.exp(-t * decay)
-
-
 def lowpass(x, k=6):
+    """Moving-average smoothing (used by the fanfare's timpani / cymbal)."""
     return np.convolve(x, np.ones(k) / k, mode="same")
 
 
@@ -218,60 +218,135 @@ def fade(x, ms=8):
     return x
 
 
-def notes(seq, kind="sq", duty=.25, gap=.13, last=.45, sustain=.5):
-    total = int((len(seq) * gap + last + .1) * SR)
-    out = np.zeros(total)
-    for i, m in enumerate(seq):
-        st = int(i * gap * SR)
-        n = int((gap * 1.3 if i < len(seq) - 1 else last) * SR)
-        seg = osc(kind, f(m), n, duty) * env(n, s=sustain)
-        out[st:st + n] += seg[:total - st]
-    return out
+def sfx_jump(r):
+    """Springy little 'bwip'."""
+    f = S.glide(290, 610, .15, 1.8)
+    body = S.tone(f, (1, .22, .05)) * S.env(len(f), .004, .055, 0, .03)
+    sub = S.tone(f[:S.n_of(.08)] / 2, (1,)) * S.perc(.08, .003, .03)
+    return S.mix(.2, (0, body, 1), (0, sub, .3))
 
 
-def make_sfx() -> dict[str, np.ndarray]:
-    s: dict[str, np.ndarray] = {}
-    s["jump"] = sweep(300, 700, .15)
-    s["tongue"] = np.concatenate([sweep(900, 1400, .08, "sq"), sweep(1400, 700, .08, "sq")]) * .6
-    s["eat"] = np.concatenate([sweep(500, 300, .07), np.zeros(800), sweep(600, 350, .07)])
-    noise = lowpass(rng.uniform(-1, 1, int(.5 * SR)), 5) * np.exp(-tt(.5) * 6)
-    s["splash"] = noise + sweep(200, 80, .5) * .5
-    s["hit"] = kick(int(.3 * SR)) + snare(int(.3 * SR)) * .5
-    s["win"] = notes([72, 76, 79, 84, 79, 84], last=.5)
-    # sad trombone: wah-wah-wah-waaah
-    lose = np.zeros(int(1.6 * SR))
-    for i, m in enumerate([67, 66, 65, 64]):
-        d = .28 if i < 3 else .8
-        n = int(d * SR)
-        t = np.arange(n) / SR
-        vib = (1 + .012 * np.sin(2 * np.pi * 6 * t)) if i == 3 else 1
-        ph = np.cumsum(np.full(n, f(m - 12)) * vib) / SR
-        w = lowpass(2 * (ph % 1) - 1, 10) * env(n, a=.03, s=.8, r=.08)
-        st = int(i * .3 * SR)
-        lose[st:st + n] += w[:len(lose) - st]
-    s["lose"] = lose
-    sj = sweep(220, 1100, .32, decay=3)
-    t = tt(.32)
-    s["superjump"] = sj * (1 + .3 * np.sin(2 * np.pi * 18 * t)) + sweep(440, 2200, .32, decay=5) * .25
-    arp = notes([72, 76, 79, 84, 88], kind="tri", duty=.5, gap=.06, last=.3, sustain=.6)
-    sparkle = sweep(2400, 3200, .25, decay=10) * .2
-    st = int(.2 * SR)
-    arp[st:st + len(sparkle)] += sparkle[:len(arp) - st]
-    s["powerup"] = arp
-    t = tt(.05)
-    s["click"] = osc("tri", 1250, len(t)) * np.exp(-t * 90)
-    t = tt(.4)
-    burp_f = np.linspace(120, 70, len(t))
-    ph = np.cumsum(burp_f) / SR
-    burp = lowpass(2 * (ph % 1) - 1, 8) * (0.6 + .4 * np.sin(2 * np.pi * 24 * t)) * env(len(t), a=.02, s=.9, r=.1)
-    s["overeat"] = burp
-    s["full"] = notes([76, 79, 84, 88], kind="sq", duty=.25, gap=.09, last=.35, sustain=.45)
-    s["denied"] = np.concatenate([osc("sq", 220, int(.06 * SR), .5) * env(int(.06 * SR), s=.6),
-                                  np.zeros(int(.03 * SR)),
-                                  osc("sq", 165, int(.09 * SR), .5) * env(int(.09 * SR), s=.6)])
-    t = tt(.025)
-    s["tick"] = np.sin(2 * np.pi * 1900 * t) * np.exp(-t * 160)
-    return s
+def sfx_tongue(r):
+    """Rubbery 'thwip': up-and-back pitch flick + a breath of air."""
+    f = np.concatenate([S.glide(420, 1080, .065, 1.4), S.glide(1080, 640, .1)])
+    body = S.tone(f, (1, .18)) * S.env(len(f), .003, .07, 0, .03)
+    return S.mix(.2, (0, body, 1), (0, S.whoosh(r, .11, 1400, 3800, 1.0, .35), .15))
+
+
+def sfx_eat(r):
+    """'pop' + 'gulp'."""
+    pop = S.bubble(640, .06, 1.7)
+    gulp = S.tone(S.glide(430, 220, .1, 1.3), (1, .3, .08)) * S.perc(.1, .003, .04)
+    return S.room(S.mix(.22, (0, pop, .9), (.062, gulp, 1)), r, .12, .08)
+
+
+def sfx_splash(r):
+    """'sploosh': falling filtered noise, a low bloop and a few bubbles."""
+    d = .6
+    wash = S.lowpass(S.noise(r, d), S.glide(4200, 450, d, 1.6), .7) * S.env(S.n_of(d), .004, .11, 0, .05)
+    bloop = S.tone(S.glide(230, 85, .26, 1.5), (1, .2)) * S.perc(.26, .004, .08)
+    out = S.mix(d + .1, (0, wash, 1), (0, bloop, .75))
+    for i in range(5):
+        S.add(out, .09 + i * .07 + r.uniform(0, .04), S.bubble(r.uniform(520, 1050), .06, 1.6), r.uniform(.2, .35))
+    return S.room(out, r, .15, .12)
+
+
+def sfx_hit(r):
+    """Cartoon 'bonk' + wobbly 'boing' (no harsh noise)."""
+    bonk = S.tone(S.glide(560, 300, .14, 2), (1, .35, .12)) * S.perc(.14, .002, .05)
+    thump = S.tone(S.glide(170, 70, .12), (1,)) * S.perc(.12, .002, .045)
+    spring = S.boing(430, 210, .3, wobble=15, depth=1.3)
+    return S.room(S.mix(.42, (0, bonk, .9), (0, thump, .7), (.04, spring, .55)), r, .12, .1)
+
+
+def sfx_win(r):
+    """Marimba run up + a bell chord + sparkles."""
+    out = S.silence(1.5)
+    for i, m in enumerate((72, 76, 79, 84)):
+        S.add(out, i * .1, S.marimba(S.midi(m), .5, .16), .55)
+    for m in (84, 88, 91):
+        S.add(out, .42, S.bell(S.midi(m), 1.0, 2.0, .8, .45), .3)
+    S.add(out, .45, S.sparkle(r, .8, 8, 2500, 5000, .25), 1)
+    return S.room(out, r, .2, .3)
+
+
+def sfx_lose(r):
+    """Soft sad trombone 'wah-wah-wah-waaah' (muted, round)."""
+    d = 1.95
+    out = S.silence(d)
+    cut = np.full(S.n_of(d), 400.0)
+    for i, m in enumerate((60, 59, 58, 57)):
+        ln = .3 if i < 3 else .95
+        st = i * .31
+        f = S.const(S.midi(m), ln)
+        t = S.tt(ln)
+        note = S.tone(f, (1, .5, .3, .15, .08, .04), vib=.35 if i == 3 else 0, vib_rate=5.5)
+        note *= S.env(len(f), .035, 10, 1, .08) * (1 - .25 * np.minimum(1, t / ln))
+        S.add(out, st, note, .6)
+        a, b = S.n_of(st), S.n_of(st) + len(f)
+        cut[a:b] = 450 + 1300 * np.sin(np.pi * np.minimum(1, t / min(ln, .3))) ** 2 * (0.7 if i == 3 else 1)
+    return S.lowpass(out, cut, .9)
+
+
+def sfx_superjump(r):
+    """Rising 'wheee' with a spring wobble, air and a twinkle."""
+    f = S.glide(250, 980, .38, 1.3)
+    body = S.tone(f, (1, .2, .05), vib=.45, vib_rate=13) * S.env(len(f), .01, .22, 0, .06)
+    return S.mix(.55, (0, body, .9), (0, S.whoosh(r, .42, 700, 3200, .9, .6), .35),
+                 (.26, S.sparkle(r, .28, 3, 2600, 4200, .3), 1))
+
+
+def sfx_powerup(r):
+    """Quick bell arpeggio + shimmer."""
+    out = S.silence(.9)
+    for i, m in enumerate((76, 79, 84, 88, 91)):
+        S.add(out, i * .055, S.bell(S.midi(m), .4, 2.0, .7, .18), .45)
+    S.add(out, .2, S.sparkle(r, .5, 6, 3000, 5500, .22), 1)
+    return S.room(out, r, .18, .2)
+
+
+def sfx_click(r):
+    """Soft 'pok'."""
+    return S.wood(880, .06, .016)
+
+
+def sfx_overeat(r):
+    """Cartoon 'urrp!' (round voiced burp) + a tiny hiccup pop."""
+    d = .42
+    t = S.tt(d)
+    f = S.glide(190, 118, d, 1.2)
+    voice = S.tone(f, (1, .7, .5, .35, .22, .12, .06)) * (0.62 + .38 * np.sin(2 * np.pi * 21 * t))
+    voice = S.lowpass(voice * S.env(len(t), .025, .2, .5, .08), 1300, .8)
+    return S.mix(.55, (0, voice, 1), (.43, S.bubble(700, .05, 1.5), .35))
+
+
+def sfx_full(r):
+    """'ding-ding-DING!' — three bells and a sparkle."""
+    out = S.silence(1.1)
+    for i, (m, dec) in enumerate(((79, .16), (84, .16), (88, .4))):
+        S.add(out, i * .12, S.bell(S.midi(m), .7, 2.0, 1.0, dec), .5)
+    S.add(out, .3, S.sparkle(r, .5, 5, 3000, 5000, .2), 1)
+    return S.room(out, r, .18, .22)
+
+
+def sfx_denied(r):
+    """Low double 'bup-bup'."""
+    a = S.tone(S.glide(420, 370, .07), (1, .3, .08)) * S.perc(.07, .003, .03)
+    b = S.tone(S.glide(330, 270, .1), (1, .3, .08)) * S.perc(.1, .003, .04)
+    return S.mix(.22, (0, a, 1), (.09, b, 1))
+
+
+def sfx_tick(r):
+    """Tiny soft tick."""
+    return S.wood(1300, .03, .007)
+
+
+SFX = {"jump": sfx_jump, "tongue": sfx_tongue, "eat": sfx_eat, "splash": sfx_splash, "hit": sfx_hit,
+       "win": sfx_win, "lose": sfx_lose, "superjump": sfx_superjump, "powerup": sfx_powerup,
+       "click": sfx_click, "overeat": sfx_overeat, "full": sfx_full, "denied": sfx_denied, "tick": sfx_tick}
+# the old SFX drew these many samples from the shared ``rng`` between the music
+# and the fanfare; replaying them keeps ``intro_fanfare.wav`` bit-identical
+LEGACY_SFX_DRAWS = int(.5 * SR) + int(.3 * SR)
 
 
 # ---------------------------------------------------------------- studio fanfare
@@ -361,18 +436,20 @@ def intro_fanfare() -> np.ndarray:
     return hall
 
 
-def main() -> int:
+def main(argv: list[str]) -> int:
+    global OUT
+    if argv:                                        # optional output dir (checks / previews)
+        OUT = Path(argv[0])
     OUT.mkdir(parents=True, exist_ok=True)
     for name, fn in (("music_a.wav", music_a), ("music_b.wav", music_b), ("music_c.wav", music_c)):
         fn().save_loop(OUT / name)
         print("wrote", name)
-    for name, buf in make_sfx().items():
-        write_wav(OUT / f"sfx_{name}.wav", fade(buf, 4), peak=.8)
-        print("wrote", f"sfx_{name}.wav")
+    S.render_all(SFX, OUT, np.random.default_rng(2024), prefix="sfx_")
+    rng.uniform(-1, 1, LEGACY_SFX_DRAWS)
     write_wav(OUT / "intro_fanfare.wav", fade(intro_fanfare(), 6), peak=.9)   # last: keeps rng order
     print("wrote intro_fanfare.wav")
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))

@@ -167,15 +167,30 @@ Events for renderers: `TILE_WARN/GONE/BACK`, `HOLE_OPEN/CLOSE`, `ROW_SHIFT`.
   audio)` — **every** world event passes here first (return True to replace the
   default reaction). Hazard animations (flicker, sink, pop-in, row slide, landing
   dip) are done by the base. `level_cache()` keeps surfaces across restarts.
+  Moving rows are clipped to the field frame (their tiles slide / wrap through it).
+* **Sounds**: map events to sounds in the field class —
+  `event_sounds = {"earth.stomp": ("earth.stomp", 1.2), ev.TILE_WARN: ("earth.crumble_warn", 1.1, .35)}`
+  (sound, volume[, min gap s]) and `tell_sounds = {"charge": (...)}` for `BOSS_TELL`
+  attack names — then call `self.event_sound(event, audio)` first thing in
+  `on_event`. The game scene plays `"<id>.boss_hit"` / `"<id>.boss_defeated"` if the
+  world ships them (else the core `hit` / `win`). Generate the WAVs with
+  `tools/gen_audio_<id>.py` (shared kit: `tools/synth.py`: soft envelopes, filtered
+  noise, bells, room tail, -3 dBFS peak, faded ends). `tests/test_audio_assets.py`
+  checks that every played name has a file and every world file is used.
 * Enemies: `@register_enemy_art("kind") class XArt(EnemyArt)` with
   `draw(surf, enemy, off)`; `self.px(pos, off)`, `self.k` (= cell/64), `self.cs`,
   `self.view.t`. Optional `draw_telegraph(...)` → True to replace the generic
   warning. Unregistered kinds render as a labelled placeholder disc.
+  UNDER / GROUND enemies (and their warnings) are clipped to the field frame,
+  AIR ones are not (birds, a leaping pike, a boss above the field); set
+  `clip = True / False` on the art class to force it.
 * `WorldArt`: `field_cls`, `icon(size)`, `boss_icon(kind, size)`, `draw_story(...)`.
 * **Style**: port the approved mockups; draw at ×3 (`render_ss(size, draw, ss=3)`,
   which supersamples then `smooth_down`s with clean alpha); cache every static
   surface (`functools.lru_cache` / `level_cache()`); numpy only at build time —
-  **never per frame**. Keep drawing code in units of `k` so all cell sizes work
+  **never per frame** — and at screen resolution when the result is soft anyway
+  (blurs, noise, shading); supersample only the crisp vector parts. A level must
+  load in well under 1.5 s. Keep drawing code in units of `k` so all cell sizes work
   (≈50 px on 3-4 up to 80 px). Keep files < 400 lines.
 
 ## 9. Tests & screenshots

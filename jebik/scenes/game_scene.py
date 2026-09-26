@@ -268,15 +268,16 @@ class GameScene(Scene):
         k, fx = self.view.k, self.effects
         x, y = self.view.to_px(e.pos)
         boss = self.world.boss
-        if e.kind == ev.BOSS_HIT:
-            self.app.audio.play("hit")
+        world_id = self.level.world
+        if e.kind == ev.BOSS_HIT:                  # a world may ship its own boss sounds
+            self.app.audio.play(f"{world_id}.boss_hit", 1.4) or self.app.audio.play("hit")
             fx.shake(14)
             fx.burst(x, y, (255, 240, 150), n=16, speed=320 * k, size=6 * k, life=0.8, kind="star")
             key = boss.hit_text_key if boss else None
             if key:
                 fx.popup(i18n.t(key), x, y - 40 * k, (255, 245, 120), 72, (150, 30, 60), life=1.6)
         else:
-            self.app.audio.play("win")
+            self.app.audio.play(f"{world_id}.boss_defeated", 1.4) or self.app.audio.play("win")
             fx.burst(x, y, (255, 200, 120), n=30, speed=400 * k, size=7 * k, life=1.2, kind="star")
             fx.banner(i18n.t("game.boss_defeated"), exit_hint(self.level.world) if self.world.full else "",
                       (255, 225, 110), (120, 60, 20))

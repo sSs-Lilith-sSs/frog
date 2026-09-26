@@ -196,11 +196,13 @@ class Whale(Boss):
             w, h = self.level_size
             self.front = {RIGHT: -1.0, DOWN: -1.0, LEFT: float(w), UP: float(h)}[self.push_dir]
             self.pushed = False
+            world.emit(Event("water.wave", value=self.push_dir))
         elif st == WAVE:
             self._update_wave(dt, world)
         elif st == GULP_WARN and self.timer <= 0:
             self._set(GULP, wc.WHALE_GULP_TIME)
             self.gulp_step = wc.WHALE_GULP_STEP * 0.5
+            world.emit(Event("water.gulp", cell=self.mouth_cell(), value=self.push_dir))
         elif st == GULP:
             self._update_gulp(dt, world)
             if self.timer <= 0:

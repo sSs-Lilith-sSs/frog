@@ -99,6 +99,7 @@ pip install -r requirements-dev.txt
 python3 -m pytest                         # тести (headless)
 python3 tools/screenshot.py screenshots   # PNG усіх екранів (headless), --lang en|ru, --only earth
 python3 tools/gen_audio.py                # перегенерувати музику й звуки
+python3 tools/gen_audio_water.py          # звуки світу (також _earth, _sky) -> jebik/worlds/<світ>/audio/
 JEBIK_AUTOQUIT=3 python3 frog.py          # запустити і вийти через 3 с
 JEBIK_NO_SPLASH=1 python3 frog.py         # без заставки студії
 ```
