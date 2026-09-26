@@ -1,0 +1,21 @@
+# Світ 1 «Вода», рівень 3 — змія, щука і чапля; частина латаття тоне (U).
+id: 1-3
+world: water
+size: 16x10
+flies_needed: 9
+par_time: 90
+tobi_time: 130
+spawn: S=snake, P=pike:hole
+enemies: heron
+unstable: warn=1.5 gone=4 trigger=step
+---
+OOOOOOO##OOOOOOO
+OO##OOO##OOOUOSO
+OO##OOOOOOOOOOOO
+OOOOOU###OOO##OO
+OOOOOO#P#OOO##OO
+O##OOO###OOOOOOO
+O##OOOOOOOOU##OO
+OOOOO##OOOOOO#OO
+OFOOO##OOO#OOOUO
+OOOOOOOOO##OOOOO

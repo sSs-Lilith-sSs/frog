@@ -1,7 +1,7 @@
 """Approved art of the water-world characters: snake head, pike, heron, whale.
 
-Pike / heron / whale are ported from the mockup but not wired yet
-(TODO(water agent)). ``K`` is the pixel unit (supersampling x cell scale).
+Pike / heron / whale are ported from the mockup and drawn by ``pike_art``,
+``heron_art`` and ``whale_art``. ``K`` is the pixel unit (supersampling x cell scale).
 """
 from __future__ import annotations
 
@@ -70,11 +70,13 @@ def draw_pike(s: pg.Surface, c: tuple[float, float], K: float, warn: bool = Fals
         pg.draw.polygon(s, (255, 255, 255), [(x, cy + 2 * K), (x + K, cy + 5 * K), (x + 2 * K, cy + 2 * K)])
 
 
-def draw_heron(s: pg.Surface, c: tuple[float, float], K: float, shadow_only: bool = False) -> None:
+def draw_heron(s: pg.Surface, c: tuple[float, float], K: float, shadow_only: bool = False,
+               shadow: bool = True) -> None:
     cx, cy = c
-    sh = pg.Surface((140 * K, 110 * K), pg.SRCALPHA)
-    pg.draw.ellipse(sh, (10, 30, 50, 110), (10 * K, 20 * K, 120 * K, 70 * K))
-    s.blit(sh, (cx - 70 * K, cy - 55 * K))
+    if shadow:
+        sh = pg.Surface((140 * K, 110 * K), pg.SRCALPHA)
+        pg.draw.ellipse(sh, (10, 30, 50, 110), (10 * K, 20 * K, 120 * K, 70 * K))
+        s.blit(sh, (cx - 70 * K, cy - 55 * K))
     if shadow_only:
         return
     ox, oy = cx + 18 * K, cy - 40 * K
@@ -96,7 +98,8 @@ def draw_heron(s: pg.Surface, c: tuple[float, float], K: float, shadow_only: boo
     pg.draw.circle(s, (20, 20, 20), (ox + 3 * K, oy - 33 * K), 1.8 * K)
 
 
-def draw_whale(s: pg.Surface, rect, K: float, surfaced: bool = True, hp: int = 3) -> None:
+def draw_whale(s: pg.Surface, rect, K: float, surfaced: bool = True, hp: int = 3,
+               hearts: bool = True) -> None:
     """The boss (final mockup version): silhouette under water or surfaced."""
     r = pg.Rect(rect)
     cx, cy = r.center
@@ -143,5 +146,5 @@ def draw_whale(s: pg.Surface, rect, K: float, surfaced: bool = True, hp: int = 3
         for d in range(4):
             pg.draw.circle(s, (225, 248, 255), (bh[0] + math.cos(ang) * (12 + d * 11) * K,
                                                 bh[1] + math.sin(ang) * (12 + d * 11) * K * .7), max(1, (5 - d)) * K)
-    for i in range(3):
+    for i in range(3 if hearts else 0):
         heart(s, int(cx - 45 * K + i * 34 * K), int(r.top - 30 * K), (230, 60, 70) if i < hp else (70, 70, 70), .8 * K)

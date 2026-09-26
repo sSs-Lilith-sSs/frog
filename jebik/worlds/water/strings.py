@@ -10,5 +10,17 @@ STRINGS: dict[str, tuple[str, str, str]] = {
                       "and a snake that can't swim.",
                       "Жабка отправляется в путешествие! Сначала — родной пруд: кувшинки, мухи "
                       "и змея, которая не умеет плавать."),
-    # TODO(water agent): "water.boss" (whale name for the HUD pill), hints for pike / heron
+    "water.boss": ("Кит", "Whale", "Кит"),
+    "water.whale_hit": ("ПИРХ!", "PFFT!", "ПФФ!"),
+    "water.pike": ("Щука", "Pike", "Щука"),
+    "water.heron": ("Чапля", "Heron", "Цапля"),
+    "water.hint.pike": ("бульбашки біля латаття — стрибай геть!",
+                        "bubbles by the pad — hop away!",
+                        "пузырьки у кувшинки — прыгай прочь!"),
+    "water.hint.heron": ("тінь під тобою — тікай!",
+                         "a shadow under you — run!",
+                         "тень под тобой — беги!"),
+    "water.hint.whale": ("стань на спину кита і лизни дихало",
+                         "stand on the whale's back and lick the blowhole",
+                         "встань на спину кита и лизни дыхало"),
 }
