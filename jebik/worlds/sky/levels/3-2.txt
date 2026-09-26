@@ -1,0 +1,23 @@
+# Світ 3 «Небо», рівень 2: ластівка + яструб (кружляє над прірвою, ривок на 2 клітинки).
+# Рядки 3 і 7 пливуть назустріч один одному.
+id: 3-2
+world: sky
+size: 18x11
+flies_needed: 16
+par_time: 120
+tobi_time: 72
+enemies: swallow; hawk @ 15 1
+unstable: warn=1.5 gone=4 trigger=step
+moving: 3 right 2.8; 7 left 3.2
+---
+OOOOO##OOOOO#OOOOO
+OOUOOOOOO#OOOOOOUO
+OOOO#OOOUOOO##OOOO
+OOOOOO#OOOOOOO#OOO
+O##OOOOOO##OOUOOOO
+OOOOUOOOOOOOOOO##O
+OOOO##OOO#OOOOOOOO
+OO#OOOOOOOOO#OOOOO
+OOOOOOU##OOOOOOUOO
+OFOOOOOOOOO#OOOO#O
+OOO##OOOOUOOOOOOOO

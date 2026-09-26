@@ -1,0 +1,23 @@
+# Світ 3 «Небо», рівень 3: ластівка + яструб + ворона (їсть мух, каркає, клює).
+id: 3-3
+world: sky
+size: 20x12
+flies_needed: 18
+par_time: 130
+tobi_time: 66
+enemies: swallow; hawk @ 10 10 speed=2.2; crow @ 17 6
+unstable: warn=1.5 gone=4 trigger=step
+moving: 2 left 3.0; 7 right 2.6
+---
+OOO##OOOOOO#OOOOOOOO
+OOOOOO#OOOOOOOOO#OOO
+OOOOOOOOO##OOOOOOOOO
+O#OOOOOOOOOOO#OOOOOO
+O#OOOOOOOOOOOOOOOO##
+OOOOO#OOOO#OOOOOOOOO
+OOOOOOOOOOOOOOO#OOOO
+OOO#OOOOO#OOOOO#OOOO
+OOOOOOOOOOUOOOOOOOOO
+OOUOOOOO##OOO#OOO#OO
+OOOOOOOOOOOOUOOOOOOO
+OFOOO#OOOOOOOO#OOOOO

@@ -1,0 +1,29 @@
+# Світ 3 «Небо», рівень 4 — бос «Ісус» на хмарі над полем + ластівка.
+# Ударити: спіймати язиком німб-бумеранг — він летить назад і б'є по голові («SASAT!»).
+id: 3-4
+world: sky
+size: 22x14
+flies_needed: 20
+par_time: 150
+tobi_time: 60
+cell: 50
+top_reserve: 180
+boss: jesus hp=3
+enemies: swallow delay=4
+unstable: warn=1.5 gone=4 trigger=step
+moving: 10 right 3.2
+---
+OO##OOOOOOOOOOOOOOO#OO
+OOOOOOOO#OOOO#OOOOOOOO
+OOOOOOOOOOOOOOOOOOOOOO
+OOOOO##OOOOOOOOOO#OOOO
+O#OOOOOOOO#OOOOOOOOOOO
+OOOOOOOOOOOOOOOOOOOO##
+OOOOOOOUOOOOOOOUOOOOOO
+OOOOOOO#OOOOOO##OOOOOO
+OOOOOOOOOOOOOOOOOOOOOO
+OOO#OOOOOOO#OOOOOO#OOO
+OOOOOO##OOOOOOO#OOOOOO
+OOOOOOOOOOOOOOOOOOOOOO
+O#OOUOOOOOFOOOOOOOOO#O
+OOOOOOOOOOOO#OOOOOOOOO
