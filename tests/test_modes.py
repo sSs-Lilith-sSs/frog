@@ -117,6 +117,9 @@ def test_unlock_order(profile):
 
 
 def test_tobi_unlocks_after_all_ezzz_and_is_sticky(profile, monkeypatch):
+    shipped = catalog.ALL_LEVELS[:-1]    # pretend the last level ships later
+    monkeypatch.setattr(catalog, "is_playable", lambda lid: lid in shipped)
+    monkeypatch.setattr(catalog, "playable_levels", lambda: list(shipped))
     assert not progression.tobi_unlocked(profile)
     assert not progression.is_unlocked(profile, TOBI, "1-1")
     for lid in catalog.playable_levels():
@@ -126,6 +129,7 @@ def test_tobi_unlocks_after_all_ezzz_and_is_sticky(profile, monkeypatch):
     second = catalog.playable_levels()[1]
     assert not progression.is_unlocked(profile, TOBI, second)     # TOBI has its own progress
     monkeypatch.setattr(catalog, "is_playable", lambda lid: lid in catalog.ALL_LEVELS)
+    monkeypatch.setattr(catalog, "playable_levels", lambda: list(catalog.ALL_LEVELS))
     assert not progression.ezzz_finished(profile)                 # new levels shipped...
     assert progression.tobi_unlocked(profile)                     # ...TOBI stays open
 
