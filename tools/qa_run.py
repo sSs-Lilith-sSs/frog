@@ -176,6 +176,8 @@ class LevelRun:
         w = g.world
         boss = w.boss
         self.forcing = True
+        w.flies.auto_spawn = False                   # no fly left to overeat on the way
+        w.flies.flies = [fl for fl in w.flies.flies if not fl.counted]
         w.hearts = w.rules.max_hearts
         if w.time_left is not None:
             w.time_left = max(w.time_left, 60.0)

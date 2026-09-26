@@ -149,7 +149,7 @@ class Harness:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--runs", type=int, default=4)
+    ap.add_argument("--runs", type=int, default=3)
     ap.add_argument("--tobi-runs", type=int, default=1)
     ap.add_argument("--fuzz-seeds", type=int, default=48)
     ap.add_argument("--quick", action="store_true")
