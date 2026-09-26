@@ -1,13 +1,13 @@
-"""Settings: volumes, music choice (with preview), fullscreen, grid, language."""
+"""Settings: volumes, music choice (with preview), fullscreen, grid, touch, language."""
 from __future__ import annotations
 
 import pygame as pg
 
-from .. import i18n
+from .. import config, i18n
 from ..ui.widgets import Choice, Slider, Toggle
 from .common import W, MenuScene, draw_hint, draw_panel
 
-ROW_W, ROW_H, ROW_STEP = 1160, 84, 98
+ROW_W, ROW_H, ROW_STEP = 1160, 78, 88
 
 
 class SettingsScene(MenuScene):
@@ -17,7 +17,7 @@ class SettingsScene(MenuScene):
         super().__init__(app, over_game)
         s = app.settings
         x = W // 2 - ROW_W // 2
-        y = 230
+        y = 220
         rows = []
 
         def row(i: int) -> tuple[int, int, int, int]:
@@ -38,10 +38,13 @@ class SettingsScene(MenuScene):
         rows.append(Toggle(row(4), lambda: i18n.t("settings.grid"),
                            lambda: bool(s["show_grid"]), self._set_grid,
                            lambda: i18n.t("settings.on"), lambda: i18n.t("settings.off")))
-        rows.append(Choice(row(5), lambda: i18n.t("settings.language"),
+        rows.append(Choice(row(5), lambda: i18n.t("settings.touch"),
+                           [(m, lambda m=m: i18n.t(f"settings.touch_{m}")) for m in config.TOUCH_MODES],
+                           lambda: s.get("touch", "auto"), self._set_touch, control_w=520))
+        rows.append(Choice(row(6), lambda: i18n.t("settings.language"),
                            [(c, i18n.LANG_LABELS[c]) for c in i18n.LANGS],
                            lambda: s["lang"], self.app.set_lang, control_w=420))
-        self.panel = pg.Rect(x - 30, y - 30, ROW_W + 60, 6 * ROW_STEP + 44)
+        self.panel = pg.Rect(x - 30, y - 30, ROW_W + 60, len(rows) * ROW_STEP + 44)
         self.back_btn = self.back_button(W // 2 - 170, self.panel.bottom + 34, 340)
         self.focus.set_widgets(rows + [self.back_btn], keep=False)
         self._sfx_preview = 0.0
@@ -66,6 +69,9 @@ class SettingsScene(MenuScene):
 
     def _set_grid(self, on: bool) -> None:
         self.app.settings["show_grid"] = on
+
+    def _set_touch(self, mode: object) -> None:
+        self.app.settings["touch"] = mode
 
     # ------------------------------------------------------------ scene
     def update(self, dt: float) -> None:

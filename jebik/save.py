@@ -207,6 +207,8 @@ def _clean_settings(raw: Any) -> dict[str, Any]:
             s[key] = max(0.0, min(1.0, float(v)))
     if raw.get("music_track") in config.MUSIC_TRACKS:
         s["music_track"] = raw["music_track"]
+    if raw.get("touch") in config.TOUCH_MODES:
+        s["touch"] = raw["touch"]
     for key in ("fullscreen", "show_grid"):
         if isinstance(raw.get(key), bool):
             s[key] = raw[key]

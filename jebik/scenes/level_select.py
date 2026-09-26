@@ -16,7 +16,8 @@ from .common import W, MenuScene, draw_hint
 from .flow import LEVELS_PER_WORLD, WORLDS, start_level
 
 TILE_W, TILE_H, GAP = 210, 170, 26
-LABEL_W = 250
+LABEL_W = 180             # world card: picture only
+WORLD_ICON = 124
 ROW_Y0, ROW_STEP = 290, 200
 WORLD_TINT = {1: (205, 236, 245), 2: (222, 240, 200), 3: (250, 226, 240)}
 WORLD_INK = {1: (40, 100, 140), 2: (70, 110, 40), 3: (150, 70, 120)}
@@ -137,7 +138,7 @@ class LevelSelectScene(MenuScene):
         pills = [DiffPill((W // 2 - 290, 168, 260, 56), EZZZ, self, False),
                  DiffPill((W // 2 + 30, 168, 260, 56), TOBI, self, True)]
         self.focus.set_widgets(tiles + pills + [self.back_button()], keep=False)
-        self._icons = {w: world_icon(w, 64) for w in WORLDS}
+        self._icons = {w: world_icon(w, WORLD_ICON) for w in WORLDS}
 
     def open_level(self, level_id: str) -> None:
         start_level(self.app, level_id)
@@ -148,10 +149,8 @@ class LevelSelectScene(MenuScene):
             r = pg.Rect(self.x0, y + 8, LABEL_W, TILE_H - 16)
             surf.blit(rounded_panel(r.size, (255, 255, 255), WORLD_INK[world], 30, 3), r.topleft)
             ic = self._icons[world]
-            surf.blit(ic, ic.get_rect(center=(r.x + 52, r.centery)))
-            name = i18n.t(f"world.{world}")
-            draw_text(surf, name, fit_size(name, 38, LABEL_W - 110), (r.x + 94, r.centery - 2),
-                      WORLD_INK[world], anchor="midleft")
+            bob = math.sin(self.time * 1.8 + wi) * 3
+            surf.blit(ic, ic.get_rect(center=(r.centerx, r.centery + bob)))
         # a fly buzzing next to the title, for life
         fs = fly_sprite(1.2, "fly", int(self.time * 20) % 2 == 1)
         surf.blit(fs, fs.get_rect(center=(W // 2 + 330 + math.sin(self.time * 2) * 20,

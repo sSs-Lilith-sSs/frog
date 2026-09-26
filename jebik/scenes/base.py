@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Callable
 import pygame as pg
 
 from .. import config
+from ..ui.touch import FINGER_EVENTS, FingerMouse
 
 if TYPE_CHECKING:
     from ..app import App
@@ -14,6 +15,7 @@ if TYPE_CHECKING:
 class Scene:
     opaque = True          # non-opaque scenes (overlays) draw the scene below first
     music = True           # keep menu/game music running
+    touch_native = False   # True: gets raw finger events, else fingers act as the mouse
 
     def __init__(self, app: "App"):
         self.app = app
@@ -42,6 +44,7 @@ class SceneManager:
         self._snapshot: pg.Surface | None = None
         self._fade = 0.0
         self._fade_time = config.TRANSITION_TIME
+        self._finger_mouse = FingerMouse()
 
     @property
     def top(self) -> Scene | None:
@@ -88,9 +91,16 @@ class SceneManager:
         return self._fade > 0
 
     def handle(self, event: pg.event.Event) -> None:
-        if self.top and not (self.transitioning and event.type in
-                             (pg.KEYDOWN, pg.MOUSEBUTTONDOWN, pg.TEXTINPUT)):
-            self.top.handle(event)
+        top = self.top
+        if top is None:
+            return
+        if event.type in FINGER_EVENTS and not top.touch_native:
+            for e in self._finger_mouse.convert(event):
+                self.handle(e)
+            return
+        if not (self.transitioning and event.type in
+                (pg.KEYDOWN, pg.MOUSEBUTTONDOWN, pg.TEXTINPUT, pg.FINGERDOWN)):
+            top.handle(event)
 
     def update(self, dt: float) -> None:
         if self._fade > 0:

@@ -118,6 +118,7 @@ class ProfileScene(MenuScene):
         self.mode, self.error = "create", ""
         self.input.text = ""
         self._build()
+        pg.key.start_text_input()         # re-ask for the on-screen keyboard
 
     def _cancel_create(self) -> None:
         self.mode, self.error = "list", ""

@@ -13,6 +13,7 @@ from .base import Scene
 from .effects import Effects
 from .game_view import GameView
 from .hud import Hud
+from .touch_hud import draw_touch_buttons, make_touchpad
 
 DIR_KEYS = {pg.K_UP: 0, pg.K_w: 0, pg.K_RIGHT: 1, pg.K_d: 1,
             pg.K_DOWN: 2, pg.K_s: 2, pg.K_LEFT: 3, pg.K_a: 3}
@@ -35,12 +36,18 @@ class GameScene(Scene):
         self.tongue_pending = 0.0
         self.new_best = False
         self.overlay_shown = False
+        self.touch = make_touchpad()
         self.effects.banner(i18n.t("game.go", n=self.level.flies_needed), "",
                             (255, 255, 255), (40, 90, 60), life=1.8, size=96)
 
     # ------------------------------------------------------------ lifecycle
+    @property
+    def touch_native(self) -> bool:
+        return self.app.touch_controls
+
     def enter(self) -> None:
         self.held.clear()
+        self.touch.reset()
         self.app.audio.play_music()
 
     def restart(self) -> None:
@@ -81,6 +88,21 @@ class GameScene(Scene):
         elif event.type == pg.MOUSEBUTTONDOWN and event.button == 1 \
                 and self.hud.pause_rect.collidepoint(event.pos):
             self.pause()
+        elif event.type in (pg.FINGERDOWN, pg.FINGERMOTION, pg.FINGERUP):
+            self._handle_finger(event)
+
+    def _handle_finger(self, event: pg.event.Event) -> None:
+        fn = {pg.FINGERDOWN: self.touch.down, pg.FINGERMOTION: self.touch.motion,
+              pg.FINGERUP: self.touch.up}[event.type]
+        for action in fn(event.finger_id, event.pos, self.time):
+            if action[0] == "move":
+                self.world.request_move(action[1], action[2])
+            elif action[0] == "tongue":
+                self.world.request_tongue()
+            elif action[0] == "arm":
+                self.app.audio.play("tick")
+            elif action[0] == "pause":
+                self.pause()
 
     def _auto_repeat(self, dt: float) -> None:
         if self.tongue_pending > 0:
@@ -232,3 +254,5 @@ class GameScene(Scene):
         self.effects.draw_popups(surf)
         self.effects.draw_banners(surf, self.view.field.center)
         self.hud.draw(surf)
+        if self.app.touch_controls:
+            draw_touch_buttons(surf, self.touch, self.world.frog.super_ready_fraction(), self.time)

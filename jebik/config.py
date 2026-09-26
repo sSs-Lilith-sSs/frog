@@ -98,7 +98,18 @@ DEFAULT_SETTINGS = {
     "music_track": "B",
     "fullscreen": False,
     "show_grid": False,
+    "touch": "auto",
 }
+
+# ---------------------------------------------------------------- touch
+TOUCH_MODES = ("auto", "on", "off")   # auto = on-screen buttons after the first touch
+TOUCH_SWIPE_MIN_DIST = 60          # logical px a finger must travel for a swipe
+TOUCH_SWIPE_MAX_TIME = 0.35        # ... within this many seconds
+TOUCH_TAP_MAX_DIST = 40            # a tap may wobble this far
+TOUCH_TAP_MAX_TIME = 0.35
+TOUCH_BUTTON_R = 60                # on-screen button radius (120 px, thumb-sized)
+TOUCH_BUTTON_MARGIN = 36           # gap to the screen edges
+TOUCH_BUTTON_ALPHA = 170           # semi-transparent over the field
 
 # ---------------------------------------------------------------- colours
 C_INK = (30, 80, 30)            # dark green outline / text on light buttons

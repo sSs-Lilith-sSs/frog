@@ -1,6 +1,7 @@
 """Application shell: display, main loop, shared services (save, audio, i18n)."""
 from __future__ import annotations
 
+import asyncio
 import os
 import time
 
@@ -9,7 +10,7 @@ import pygame as pg
 from . import config, i18n, save
 from .audio import Audio
 from .game.rules import EZZZ
-from .ui import widgets
+from .ui import touch, widgets
 
 
 class App:
@@ -28,6 +29,7 @@ class App:
         widgets.set_sound_hook(self.audio.play)
         self.difficulty = EZZZ
         self.running = True
+        self.touch_seen = False       # a finger event arrived (touch mode "auto")
 
         from .scenes.base import SceneManager
         from .scenes.common import MenuBackdrop
@@ -62,6 +64,12 @@ class App:
         i18n.set_lang(code)
         self.persist()
 
+    @property
+    def touch_controls(self) -> bool:
+        """Show on-screen buttons and read swipes/taps in the game."""
+        mode = self.settings.get("touch", "auto")
+        return mode == "on" or (mode == "auto" and self.touch_seen)
+
     def is_fullscreen(self) -> bool:
         try:
             return bool(pg.display.is_fullscreen())
@@ -81,6 +89,11 @@ class App:
     # ------------------------------------------------------------ loop
     def frame(self, dt: float, events: list[pg.event.Event]) -> None:
         for event in events:
+            if touch.is_touch_mouse(event):
+                continue                  # the finger events are handled instead
+            if event.type in touch.FINGER_EVENTS:
+                self.touch_seen = True
+                event = touch.localize(event)
             if event.type == pg.QUIT:
                 self.running = False
             elif event.type == pg.KEYDOWN and event.key == pg.K_F11:
@@ -92,7 +105,8 @@ class App:
         self.audio.update(dt)
         self.scenes.draw(self.screen)
 
-    def run(self) -> None:
+    async def run(self) -> None:
+        """Main loop; yields to asyncio every frame so pygbag (browser) works."""
         autoquit = float(os.environ.get("JEBIK_AUTOQUIT", "0") or 0)
         start = time.monotonic()
         while self.running:
@@ -101,6 +115,7 @@ class App:
             pg.display.flip()
             if autoquit and time.monotonic() - start > autoquit:
                 self.running = False
+            await asyncio.sleep(0)
         self.persist()
         pg.quit()
 
@@ -108,5 +123,5 @@ class App:
         self.running = False
 
 
-def main() -> None:
-    App().run()
+async def main() -> None:
+    await App().run()

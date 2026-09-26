@@ -361,6 +361,13 @@ class TextInput(Widget):
         if self.on_submit:
             self.on_submit(self.text)
 
+    def press(self, pos) -> None:
+        # a tap on the field asks for the on-screen keyboard (phones, browser)
+        try:
+            pg.key.start_text_input()
+        except pg.error:
+            pass
+
     def release(self, pos) -> None:
         pass
 

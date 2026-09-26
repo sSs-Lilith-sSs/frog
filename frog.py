@@ -11,7 +11,9 @@ try:
 except ImportError as exc:  # pragma: no cover - friendly message only
     sys.exit(f"Не вистачає бібліотеки: {exc.name}. Встанови: pip install -r requirements.txt")
 
+import asyncio
+
 from jebik.app import main
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
