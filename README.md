@@ -143,6 +143,7 @@ python3 tools/gen_audio_water.py          # звуки світу (також _e
 JEBIK_AUTOQUIT=3 python3 frog.py          # запустити і вийти через 3 с
 JEBIK_NO_SPLASH=1 python3 frog.py         # без заставки студії
 python3 frog.py --selftest                # перевірка: шрифти, звуки, усі рівні всіх світів
+python3 tools/qa_soak.py                  # QA-прогін (~5 хв, RU): бот проходить усі рівні, меню, збереження
 ```
 
 Структура:

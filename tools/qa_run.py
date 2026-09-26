@@ -214,7 +214,7 @@ class LevelRun:
         return "force_failed"
 
 
-def soak_levels(h: Harness, levels, runs: int, stats, difficulty=EZZZ, budget=150.0):
+def soak_levels(h: Harness, levels, runs: int, stats, difficulty=EZZZ, budget=100.0):
     h.app.difficulty = difficulty
     h.draw_every = 12
     for lid in levels:
@@ -224,7 +224,7 @@ def soak_levels(h: Harness, levels, runs: int, stats, difficulty=EZZZ, budget=15
             h.ctx = f"{difficulty} {lid} seed={seed} {mode}"
             t0 = time.perf_counter()
             try:
-                run = LevelRun(h, lid, seed, mode, budget if mode == "bot" else 45.0)
+                run = LevelRun(h, lid, seed, mode, budget if mode == "bot" else 30.0)
                 out = run.play()
             except Exception:                         # noqa: BLE001
                 out = "exception"

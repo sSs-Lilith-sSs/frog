@@ -149,12 +149,13 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--runs", type=int, default=4)
     ap.add_argument("--tobi-runs", type=int, default=1)
+    ap.add_argument("--fuzz-seeds", type=int, default=24)
     ap.add_argument("--quick", action="store_true")
     ap.add_argument("--only", nargs="*")
     ap.add_argument("--skip-flows", action="store_true")
     args = ap.parse_args()
     if args.quick:
-        args.runs, args.tobi_runs = 2, 1
+        args.runs, args.tobi_runs, args.fuzz_seeds = 2, 1, 6
     import qa_flows
     import qa_run
     t_start = time.perf_counter()
@@ -165,9 +166,11 @@ def main() -> int:
 
     def phase(name, fn, *a):
         h.ctx = name
-        print(f"== {name}", flush=True)
+        t0 = time.perf_counter()
+        print(f"== {name}", end=" ", flush=True)
         try:
             fn(h, *a)
+            print(f"({time.perf_counter() - t0:.0f} s)", flush=True)
         except Exception:                             # noqa: BLE001
             h.issue("exception", f"{name}: {traceback.format_exc().splitlines()[-1]}",
                     traceback.format_exc())
@@ -183,6 +186,8 @@ def main() -> int:
         phase("window/touch", qa_flows.window_and_touch)
         phase("campaign EZZZ 1-1..3-4", qa_flows.campaign, stats)
         phase("locale overflow", qa_flows.locale_scan)
+    import qa_fuzz
+    phase("logic fuzz (no drawing)", qa_fuzz.logic_fuzz, levels, args.fuzz_seeds, stats)
     tracemalloc.start()
     phase("soak EZZZ", qa_run.soak_levels, levels, args.runs, stats, EZZZ)
     snap1 = tracemalloc.take_snapshot()

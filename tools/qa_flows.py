@@ -197,7 +197,7 @@ def campaign(h, stats):
             retry = bool(played) and played[-1] == g.level_id
             if not retry:
                 played.append(g.level_id)
-            run = LevelRun(h, g.level_id, len(played), "bot", 20.0 if retry else 150.0)
+            run = LevelRun(h, g.level_id, len(played), "bot", 20.0 if retry else 100.0)
             run._hook(g)
             out = run.play(start=False)
             stats[("campaign", g.level_id)][out] += 1
@@ -219,6 +219,7 @@ def campaign(h, stats):
             h.issue("campaign", f"unexpected {name}")
             break
     h.draw_every = 1
+    h.campaign_done = True
     from jebik.worlds import catalog
     expect(h, played == catalog.playable_levels(), "campaign", f"order {played}")
     p = h.app.profile
@@ -231,9 +232,11 @@ def campaign(h, stats):
 # ---------------------------------------------------------------- TOBI
 def tobi_flow(h, levels, runs, stats):
     from jebik.scenes.game_scene import GameScene
+    h.to_menu()                                  # makes sure a profile exists
     p = h.app.profile
     if not progression.tobi_unlocked(p):
-        h.issue("tobi", "TOBI locked when the TOBI phase started; unlocking by flag")
+        if getattr(h, "campaign_done", False):
+            h.issue("tobi", "TOBI locked after the EZZZ campaign; unlocking by flag")
         p.mark(progression.TOBI_FLAG)
     h.app.difficulty = TOBI
     for lid in levels:
@@ -293,7 +296,7 @@ def tobi_flow(h, levels, runs, stats):
                    f"{lid} dragon at N-1 in TOBI: state={w.state} reason={w.lose_reason}")
             h.run(config.TOBI_RESTART_DELAY + 0.6)
             expect(h, h.game is not g, "tobi", f"{lid} overeat did not restart")
-    soak_levels(h, levels, runs, stats, TOBI, budget=200.0)
+    soak_levels(h, levels, runs, stats, TOBI, budget=120.0)
     h.app.difficulty = EZZZ
 
 
