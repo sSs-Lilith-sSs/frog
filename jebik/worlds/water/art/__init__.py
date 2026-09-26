@@ -1,4 +1,4 @@
-"""Water-world art: field (pools + lily pads), snake, icon.
+"""Water-world art: field (pools + lily pads), snake, pike, heron, whale, icons.
 
 Importing this package registers the enemy renderers.
 """
@@ -8,7 +8,7 @@ import pygame as pg
 
 from ....art.common import render_ss
 from ....art.world_art import WorldArt
-from . import snake_art  # noqa: F401  (registers the snake renderer)
+from . import predator_art, snake_art, whale_art  # noqa: F401  (register the renderers)
 from .field import WaterField
 
 
@@ -23,7 +23,8 @@ class WaterArt(WorldArt):
             pg.draw.circle(s, (190, 230, 250), (8 * u, 13 * u), 1.8 * u)
         return render_ss((size, size), draw)
 
-    # TODO(water agent): boss_icon("whale", size) for the HUD pill; draw_story for water cards
+    def boss_icon(self, kind: str, size: int) -> pg.Surface | None:
+        return whale_art.whale_icon(size) if kind == "whale" else None
 
 
 ART = WaterArt()

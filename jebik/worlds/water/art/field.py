@@ -94,6 +94,18 @@ class WaterField(FieldRenderer):
         effects.ring(x, y, 3 * self.k, 20 * self.k, 1.6, (185, 230, 240), 2, 0.45)
 
     def on_event(self, event: ev.Event, view, effects, audio) -> bool:
+        if event.kind == "water.whale_surface":           # the whale breaks the surface
+            x, y = view.to_px(event.cell)
+            for i in range(3):
+                effects.ring(x, y, 20 * self.k, (70 + i * 30) * self.k, 0.7 + i * .2, (225, 248, 255), 3)
+            effects.burst(x, y, (225, 245, 255), n=18, speed=240 * self.k, size=4 * self.k, life=0.7)
+            effects.shake(6)
+            return True
+        if event.kind == "water.jet":
+            for c in (event.value or [])[::2]:
+                x, y = view.to_px(c)
+                effects.burst(x, y, (235, 250, 255), n=3, speed=90 * self.k, size=3 * self.k, life=0.4)
+            return True
         if event.kind in (ev.TILE_GONE, ev.HOLE_OPEN):     # the pad sinks
             x, y = view.to_px(event.cell)
             for i in range(2):

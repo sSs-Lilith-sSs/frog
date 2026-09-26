@@ -1,0 +1,24 @@
+# Світ 1 «Вода», рівень 4 — бос Кит (+ змія). Після виринання стань йому на спину
+# і лизни дихало язиком. Частина латаття тоне (U).
+id: 1-4
+world: water
+size: 18x12
+flies_needed: 12
+par_time: 110
+tobi_time: 120
+spawn: S=snake
+boss: whale @ 9 5 hp=3
+unstable: warn=1.5 gone=4 trigger=step
+---
+OOOOOOOOOOOOOOOOOO
+OO##OOOOOOOOOOO#OO
+OO##OOOOU#OOOOOOSO
+OOOOOOOOOOOOO##OOO
+OOOOO#OOOOOOO##OOO
+OUOOO##OOOOOOOOOOO
+OOOOOOOOOOO#OOOUOO
+O##OOOOOOOO##OOOOO
+OO#OOOOUOOOOOOOOOO
+OOOOOO##OOOOOO##OO
+OFOOOO##OOOOOO#OOO
+OOOOOOOOOOOOOOOOOO

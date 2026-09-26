@@ -1,0 +1,19 @@
+# Світ 1 «Вода», рівень 2 — у ставку живе щука: бульбашки біля латаття = тікай.
+# O — латаття, # — вода, F — старт жабки, S — змія, P — щука (у воді).
+id: 1-2
+world: water
+size: 14x9
+flies_needed: 7
+par_time: 75
+tobi_time: 140
+spawn: S=snake, P=pike:hole
+---
+OOOOO##OOOOOOO
+OO#OO##OOO##OO
+OO#OOOOOOO##SO
+OOOOOO###OOOOO
+O##OOO#P#OOO#O
+O##OOO###OOO#O
+OOOOOOOOOOOOOO
+OFOO##OOO##OOO
+OOOO##OOOOOOOO
