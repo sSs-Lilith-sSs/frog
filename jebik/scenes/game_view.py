@@ -59,9 +59,9 @@ class GameView:
         self.pad_index = {spec.cell: i for i, (spec, _) in enumerate(self.pads)}
         self.dips: dict[tuple[int, int], float] = {}
         self.snake_art = SnakeArt(self.cs)
-        self.exit_img = water.exit_sprite(self.k)
-        self.exit_glow = water.glow_sprite(64 * self.k, max_alpha=170)
-        self.firefly_glow = water.glow_sprite(26 * self.k, (255, 240, 120), max_alpha=150)
+        self.exit_img = water.exit_sprite(self.k * 1.3)
+        self.exit_glow = water.additive_glow(78 * self.k, (150, 130, 70))
+        self.firefly_glow = water.additive_glow(30 * self.k, (170, 150, 40))
         self.exit_t: float | None = None
         self.land_t = 1.0
         self.land_strength = 1.0
@@ -159,10 +159,14 @@ class GameView:
         cx, cy = self.to_px(cell)
         cx, cy = cx + off[0], cy + off[1]
         t = self.exit_t or 0.0
-        pulse = 0.85 + 0.15 * math.sin(self.t * 3)
-        glow = self.exit_glow.copy()
-        glow.set_alpha(int(255 * pulse * min(1.0, t / 0.4)))
-        surf.blit(glow, glow.get_rect(center=(round(cx), round(cy))))
+        pulse = (0.72 + 0.28 * math.sin(self.t * 3)) * min(1.0, t / 0.4)
+        glow = self.exit_glow[max(0, min(len(self.exit_glow) - 1, int(pulse * len(self.exit_glow)) - 1))]
+        surf.blit(glow, glow.get_rect(center=(round(cx), round(cy))), special_flags=pg.BLEND_RGB_ADD)
+        for i in range(6):                      # slow sparkles circling the lotus
+            a = self.t * 0.8 + i * math.pi / 3
+            rr = self.cs * (0.62 + 0.06 * math.sin(self.t * 2 + i))
+            sp = disc_sprite(max(1.0, round(2.4 * self.k * 2) / 2), (255, 245, 200))
+            surf.blit(sp, sp.get_rect(center=(round(cx + math.cos(a) * rr), round(cy + math.sin(a) * rr * 0.8))))
         if t < 0.5:
             u = t / 0.5
             sc = max(0.05, 1 + math.sin(u * math.pi * 1.4) * (1 - u) * 0.5 - (1 - u) * 0.6)
@@ -191,9 +195,10 @@ class GameView:
             surf.blit(sh, sh.get_rect(center=(round(x), round(y + 6 * k))))
         py = y - lift + bob
         if fly.kind == "firefly":
-            glow = self.firefly_glow.copy()
-            glow.set_alpha(int(180 + 75 * math.sin(self.t * 5 + fly.phase)))
-            surf.blit(glow, glow.get_rect(center=(round(x), round(py + 3 * k))))
+            lv = 0.65 + 0.35 * math.sin(self.t * 5 + fly.phase)
+            glow = self.firefly_glow[max(0, int(lv * len(self.firefly_glow)) - 1)]
+            surf.blit(glow, glow.get_rect(center=(round(x), round(py + 3 * k))),
+                      special_flags=pg.BLEND_RGB_ADD)
         img = fly_sprite(round(k * scale, 3), fly.kind, wing)
         if fly.kind == "dragon":
             ang = -math.degrees(fly.heading) - 90

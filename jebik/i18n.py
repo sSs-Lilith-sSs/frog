@@ -35,7 +35,7 @@ _S: dict[str, tuple[str, str, str]] = {
     "profile.new": ("Новий профіль", "New profile", "Новый профиль"),
     "profile.create": ("Створити", "Create", "Создать"),
     "profile.enter_name": ("Введи ім'я:", "Enter your name:", "Введи имя:"),
-    "profile.placeholder": ("ім'я…", "name…", "имя…"),
+    "profile.placeholder": ("ім'я...", "name...", "имя..."),
     "profile.delete_q": ("Видалити профіль «{name}»?", "Delete profile “{name}”?",
                          "Удалить профиль «{name}»?"),
     "profile.err_empty": ("Ім'я не може бути порожнім", "Name can't be empty",
@@ -130,7 +130,7 @@ _S: dict[str, tuple[str, str, str]] = {
     "win.menu": ("Меню", "Menu", "Меню"),
     "win.no_damage": ("без ударів", "no damage", "без ударов"),
     "win.par": ("швидко: до {t}", "fast: under {t}", "быстро: до {t}"),
-    "lose.title": ("Ой-ой…", "Oh no…", "Ой-ой…"),
+    "lose.title": ("Ой-ой...", "Oh no...", "Ой-ой..."),
     "lose.sub": ("Серця скінчилися. Спробуй ще!", "Out of hearts. Try again!",
                  "Сердца закончились. Попробуй ещё!"),
 }

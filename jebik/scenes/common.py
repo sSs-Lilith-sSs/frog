@@ -75,7 +75,8 @@ def draw_logo(surf: pg.Surface, center: tuple[int, int], size: int = 190, t: flo
     surf.blit(img, img.get_rect(center=(center[0], center[1] + bob)))
     if subtitle:
         sub_size = int(size * 0.24)
-        draw_text(surf, i18n.SUBTITLE, sub_size, (center[0], center[1] + size * 0.66),
+        # the font's full-width "・" leaves wide gaps; draw it as a narrow "·"
+        draw_text(surf, i18n.SUBTITLE.replace("・", "·"), sub_size, (center[0], center[1] + size * 0.66),
                   (255, 255, 255), outline=config.C_SUBTITLE_OUTLINE, outline_w=max(2, sub_size // 12))
 
 

@@ -7,7 +7,7 @@ import pygame as pg
 
 from .. import config, i18n
 from ..art.chars import fly_sprite
-from ..art.common import (draw_text, fit_size, lock_sprite, render_ss,
+from ..art.common import (draw_text, fit_size, font, lock_sprite, render_ss,
                           rounded_panel, star_sprite)
 from ..game.grid import level_exists
 from ..game.rules import DIFFICULTY_NAMES, EZZZ, TOBI
@@ -105,10 +105,19 @@ class DiffPill(Button):
                          radius=28, shadow=0, border=3)
 
     def draw(self, surf: pg.Surface) -> None:
-        super().draw(surf)
+        fill, ink = self.colors()
+        r = self.rect.move(self.shake_offset(), 0)
+        surf.blit(rounded_panel(r.size, fill, config.C_BUTTON_SHADOW, 28, 3), r.topleft)
+        text = str(self.label)
         if self.locked:
-            lk = lock_sprite(28)
-            surf.blit(lk, lk.get_rect(center=(self.rect.x + 30, self.rect.centery)))
+            lk = lock_sprite(30)
+            tw = fit_size(text, 30, r.w - 90)
+            img_w = font(tw).size(text)[0]
+            x0 = r.centerx - (img_w + 38) // 2
+            surf.blit(lk, lk.get_rect(midleft=(x0, r.centery)))
+            draw_text(surf, text, tw, (x0 + 38, r.centery - 1), ink, anchor="midleft")
+        else:
+            draw_text(surf, text, 30, (r.centerx, r.centery - 1), ink)
 
 
 class LevelSelectScene(MenuScene):

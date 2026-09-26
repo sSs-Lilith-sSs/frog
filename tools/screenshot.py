@@ -145,7 +145,9 @@ def main() -> int:
     d.settle(2.0)                                  # start banner fades
     g = d.game
     w = g.world
-    for k in (pg.K_RIGHT, pg.K_UP, pg.K_RIGHT, pg.K_RIGHT, pg.K_UP):
+    for enemy in w.enemies:            # keep the snake shy so the run is clean
+        enemy.retreat = 1e9
+    for k in (pg.K_RIGHT, pg.K_UP, pg.K_UP, pg.K_RIGHT, pg.K_RIGHT):
         d.key(k, wait=0.25)
     d.settle(0.4)
     # set up a catch two cells ahead so the tongue is visibly out
@@ -180,7 +182,6 @@ def main() -> int:
         if fly.cell == ahead:
             w.flies.flies.remove(fly)
     w.flies.spawn_at("fly", ahead, rest=5)
-    f.invuln = 30                                  # keep the snake from interfering
     d.key(pg.K_SPACE, wait=DT)
     d.run(0.9)
     d.shot("12_full_exit")

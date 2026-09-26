@@ -31,7 +31,7 @@ class SettingsScene(MenuScene):
                            [("A", lambda: "A · " + i18n.t("settings.music_a")),
                             ("B", lambda: "B · " + i18n.t("settings.music_b")),
                             ("C", lambda: "C · " + i18n.t("settings.music_c"))],
-                           lambda: s["music_track"], self._set_track, control_w=700))
+                           lambda: s["music_track"], self._set_track, control_w=820))
         rows.append(Toggle(row(3), lambda: i18n.t("settings.fullscreen"),
                            lambda: bool(s["fullscreen"]), self._set_fullscreen,
                            lambda: i18n.t("settings.on"), lambda: i18n.t("settings.off")))

@@ -78,12 +78,12 @@ class Overlay(Scene):
 
 
 class PauseScene(Overlay):
-    panel_size = (640, 620)
+    panel_size = (640, 560)
     animate_game = False
 
     def __init__(self, app, game):
         super().__init__(app, game)
-        top = self.panel.y + 180
+        top = self.panel.y + 170
         self.focus.set_widgets(self.column([
             ("pause.resume", self.resume), ("pause.restart", self.restart),
             ("pause.settings", self.settings), ("pause.menu", self.menu)], top), keep=False)
@@ -185,15 +185,15 @@ class WinScene(Overlay):
             wob = math.sin(self.time * 4) * 4
             badge = text_surface(i18n.t("win.best"), 34, (255, 235, 120), True, (170, 70, 40), 4)
             badge = pg.transform.rotozoom(badge, 8 + wob, 1.0)
-            surf.blit(badge, badge.get_rect(center=(p.right - 110, p.y + 150)))
+            surf.blit(badge, badge.get_rect(center=(p.right - 150, p.y + 318)))
 
 
 class LoseScene(Overlay):
-    panel_size = (720, 520)
+    panel_size = (720, 440)
 
     def __init__(self, app, game):
         super().__init__(app, game)
-        y = self.panel.bottom - 130
+        y = self.panel.bottom - 120
         self.focus.set_widgets(self.row([("win.again", self.restart), ("win.menu", self.menu)], y, w=260),
                                keep=False)
 
@@ -201,6 +201,6 @@ class LoseScene(Overlay):
         p = self.panel
         frog = frog_sprite(1.7, 0, "sad")
         surf.blit(frog, frog.get_rect(center=(p.centerx, p.y - 10)))
-        draw_text(surf, i18n.t("lose.title"), 76, (p.centerx, p.y + 130), (235, 120, 120),
+        draw_text(surf, i18n.t("lose.title"), 76, (p.centerx, p.y + 120), (235, 120, 120),
                   outline=(120, 40, 50), outline_w=5)
-        draw_text(surf, i18n.t("lose.sub"), 34, (p.centerx, p.y + 230), (80, 105, 85), bold=False)
+        draw_text(surf, i18n.t("lose.sub"), 34, (p.centerx, p.y + 210), (80, 105, 85), bold=False)
