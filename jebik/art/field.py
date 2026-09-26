@@ -98,9 +98,11 @@ class FieldRenderer:
     def update(self, dt: float, world, effects, view) -> None:
         """Ambient animation (ripples, falling leaves...)."""
 
-    def on_event(self, event: Event, view, effects) -> bool:
-        """React to a world event (e.g. splash rings when a pad sinks).
-        Return True if handled (the scene then skips its default)."""
+    def on_event(self, event: Event, view, effects, audio) -> bool:
+        """React to a world event: particles via ``effects``, sounds via
+        ``audio.play("<world>.<name>")``. Every event passes here first —
+        including world-specific kinds like ``"earth.stomp"``. Return True if
+        handled (the scene then skips its default reaction)."""
         return False
 
     # ------------------------------------------------------------ helpers

@@ -18,7 +18,7 @@ class Rock(Enemy):
 
 
 @register_enemy("test_boss")
-class TestBoss(Boss):
+class FakeBoss(Boss):
     name_key = "boss.generic"
     hit_text_key = "sky.sasat"
 

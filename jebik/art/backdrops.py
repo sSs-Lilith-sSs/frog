@@ -10,7 +10,7 @@ from functools import lru_cache
 import pygame as pg
 
 from .. import config
-from .common import lerp, render_ss
+from .common import render_ss
 
 W, H = config.SCREEN_W, config.SCREEN_H
 

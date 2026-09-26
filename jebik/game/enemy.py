@@ -79,6 +79,10 @@ class Enemy:
         self.anim += dt
         self.stunned = max(0.0, self.stunned - dt)
 
+    def stun(self, seconds: float) -> None:
+        """Harmless for ``seconds`` (``hurts`` is False while stunned)."""
+        self.stunned = max(self.stunned, seconds)
+
     # ------------------------------------------------------------ queries
     def center(self) -> Pos:
         """Where popups / hit sparks appear (cell units)."""

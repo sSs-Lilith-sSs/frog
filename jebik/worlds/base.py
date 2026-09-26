@@ -36,7 +36,6 @@ class WorldDef:
     art_module: str = ""                # e.g. "jebik.worlds.water.art"
     strings: dict[str, tuple[str, str, str]] = field(default_factory=dict)
     story: tuple[str, ...] = ()         # i18n keys of the cards shown before x-1
-    music: str | None = None            # optional track id override (None = setting)
 
     @property
     def name_key(self) -> str:

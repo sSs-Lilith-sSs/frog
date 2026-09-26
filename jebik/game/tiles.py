@@ -27,7 +27,7 @@ from typing import Iterator
 from .. import config
 from .events import (Event, HOLE_CLOSE, HOLE_OPEN, ROW_SHIFT, TILE_BACK,
                      TILE_GONE, TILE_WARN)
-from .grid import DIRS, Cell, Level, MovingRowSpec, UnstableSpec
+from .grid import DIRS, Cell, Level, UnstableSpec
 
 SOLID = "solid"
 HOLE = "hole"

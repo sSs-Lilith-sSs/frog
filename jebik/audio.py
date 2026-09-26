@@ -1,4 +1,9 @@
-"""Music + sound effects. Degrades silently if no audio device is available."""
+"""Music + sound effects. Degrades silently if no audio device is available.
+
+Core effects live in ``assets/audio/sfx_<name>.wav``. World packages ship
+their own in ``jebik/worlds/<id>/audio/<name>.wav`` and play them as
+``audio.play("<id>.<name>")`` — loaded lazily on first use.
+"""
 from __future__ import annotations
 
 import pygame as pg
@@ -21,6 +26,7 @@ class Audio:
         self._duck_target = 1.0
         self._duck_hold = 0.0
         self.intro_channel: pg.mixer.Channel | None = None
+        self._missing: set[str] = set()
         try:
             if not pg.mixer.get_init():
                 pg.mixer.init(frequency=44100, size=-16, channels=2, buffer=512)
@@ -108,9 +114,27 @@ class Audio:
             self.apply_volume()
 
     # ------------------------------------------------------------ sfx
+    def _world_sound(self, name: str) -> pg.mixer.Sound | None:
+        """``"earth.stomp"`` -> ``jebik/worlds/earth/audio/stomp.wav`` (cached, None if missing)."""
+        if name in self._missing:
+            return None
+        world, _, rest = name.partition(".")
+        path = config.WORLDS_DIR / world / "audio" / f"{rest}.wav"
+        try:
+            snd = pg.mixer.Sound(str(path))
+        except (pg.error, FileNotFoundError):
+            self._missing.add(name)
+            return None
+        self.sounds[name] = snd
+        return snd
+
     def play(self, name: str, volume: float = 1.0) -> None:
+        if not self.enabled:
+            return
         snd = self.sounds.get(name)
-        if not self.enabled or snd is None:
+        if snd is None and "." in name:
+            snd = self._world_sound(name)
+        if snd is None:
             return
         vol = float(self.settings.get("sfx_volume", .8)) * SFX_TRIM.get(name, .7) * volume
         if vol <= 0.001:

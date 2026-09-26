@@ -93,7 +93,7 @@ class WaterField(FieldRenderer):
         x, y = view.to_px(pos)
         effects.ring(x, y, 3 * self.k, 20 * self.k, 1.6, (185, 230, 240), 2, 0.45)
 
-    def on_event(self, event: ev.Event, view, effects) -> bool:
+    def on_event(self, event: ev.Event, view, effects, audio) -> bool:
         if event.kind in (ev.TILE_GONE, ev.HOLE_OPEN):     # the pad sinks
             x, y = view.to_px(event.cell)
             for i in range(2):

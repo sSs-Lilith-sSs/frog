@@ -25,13 +25,15 @@ def _cell_rect(view, cell, off) -> pg.Rect:
 def draw_telegraph(surf: pg.Surface, view, tg: Telegraph, off: tuple[int, int]) -> None:
     p = max(0.0, min(1.0, tg.progress))
     blink = 0.5 + 0.5 * math.sin(view.t * (8 + 18 * p))
-    if tg.style == "zone":
-        layer = pg.Surface(surf.get_size(), pg.SRCALPHA)
-        for c in tg.cells:
-            r = _cell_rect(view, c, off)
+    if tg.style == "zone" and tg.cells:
+        rects = [_cell_rect(view, c, off) for c in tg.cells]
+        box = rects[0].unionall(rects[1:])
+        layer = pg.Surface(box.size, pg.SRCALPHA)
+        for r in rects:
+            r = r.move(-box.x, -box.y)
             pg.draw.rect(layer, (*RED, int(50 + 90 * p * blink)), r, border_radius=int(view.cs * .18))
             pg.draw.rect(layer, (*RED, 220), r, max(2, int(3 * view.k)), border_radius=int(view.cs * .18))
-        surf.blit(layer, (0, 0))
+        surf.blit(layer, box.topleft)
     elif tg.style == "line":
         for c in tg.cells:
             x, y = view.to_px(c)

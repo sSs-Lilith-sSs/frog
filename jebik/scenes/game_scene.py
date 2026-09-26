@@ -165,7 +165,7 @@ class GameScene(Scene):
         audio, fx, view, k = self.app.audio, self.effects, self.view, self.view.k
         kinds = {e.kind for e in events}
         for e in events:
-            if view.field_art.on_event(e, view, fx):
+            if view.field_art.on_event(e, view, fx, audio):
                 continue
             if e.kind == ev.HOP:
                 audio.play("jump")

@@ -13,7 +13,6 @@ import math
 
 import pygame as pg
 
-from .. import config
 from ..art.chars import fly_sprite, frog_shadow, frog_sprite, small_shadow
 from ..art.common import disc_sprite
 from ..art.enemy_art import EnemyArt, enemy_art_class

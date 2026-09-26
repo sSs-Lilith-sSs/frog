@@ -11,7 +11,6 @@ The splash scene only rotates beams and scales the city / logo layers.
 """
 from __future__ import annotations
 
-import math
 import random
 from functools import lru_cache
 
@@ -19,7 +18,7 @@ import numpy as np
 import pygame as pg
 
 from .. import config
-from .common import blur, lerp
+from .common import blur
 from .splash_glyphs import glyph
 
 W, H = config.SCREEN_W, config.SCREEN_H
