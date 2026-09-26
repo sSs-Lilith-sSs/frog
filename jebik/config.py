@@ -92,7 +92,7 @@ LOSE_DELAY = 0.9
 MUSIC_TRACKS = ("A", "B", "C")
 MUSIC_FILES = {"A": "music_a.wav", "B": "music_b.wav", "C": "music_c.wav"}
 SFX_NAMES = ("jump", "tongue", "eat", "splash", "hit", "win", "lose",
-             "superjump", "powerup", "click", "overeat", "full")
+             "superjump", "powerup", "click", "overeat", "full", "denied", "tick")
 DEFAULT_SETTINGS = {
     "lang": "ua",
     "music_volume": 0.6,
