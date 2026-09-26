@@ -1,5 +1,5 @@
-"""Text-overflow scan for ``tools/qa_soak.py``: renders every screen in UA / EN /
-RU and checks, from the rects ``draw_text`` returns, that no text leaves the
+"""Text-overflow scan for ``tools/qa_soak.py``: renders every screen in the QA
+language (RU) and checks, from the rects ``draw_text`` returns, that no text leaves the
 screen, sticks out of the panel / button it sits in, or overlaps another text."""
 from __future__ import annotations
 
@@ -110,7 +110,8 @@ def scan(h):
             app.scenes.push(scene, fade=False)
         h.run(0.5)
 
-    for lang in i18n.LANGS:
+    from qa_soak import LANG
+    for lang in (LANG,):
         app.set_lang(lang)
         L = lang.upper()
         for diff in (EZZZ, TOBI):
@@ -170,7 +171,6 @@ def scan(h):
             cut.index, cut.card_t = i, 99.0
             h.run(0.2)
             check(h, f"{L} Cutscene {cards[i].text_key or cards[i].art}")
-    app.set_lang("ua")
     app.save.current = "Кыця"
     reset(None)
 

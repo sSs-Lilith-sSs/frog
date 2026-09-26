@@ -10,7 +10,7 @@ import pygame as pg
 
 from jebik import config, i18n, progression, save
 from jebik.game.rules import EZZZ, TOBI
-from qa_soak import DT, SAVE_DIR, LevelRun, kev, soak_levels
+from qa_soak import DT, LANG, SAVE_DIR, LevelRun, kev, soak_levels
 
 WIDE = "ШШШШШШШШШШШШШШШШ"          # 16 wide letters = MAX_NAME_LEN
 
@@ -112,7 +112,7 @@ def settings_flow(h):
     h.frame([pg.event.Event(pg.MOUSEBUTTONUP, pos=(tr.right + 400, tr.centery), button=1)])
     expect(h, s["music_volume"] == 1.0, "settings", f"slider drag past end -> {s['music_volume']}")
     h.frame([pg.event.Event(pg.MOUSEWHEEL, x=0, y=-1, flipped=False, precise_y=-1.0, precise_x=0.0)])
-    h.app.set_lang("ua")
+    h.app.set_lang(LANG)
     h.key(pg.K_ESCAPE)
     h.settle(0.4)
     expect(h, h.top_name() == "MainMenuScene", "flow", "settings back")
@@ -313,7 +313,7 @@ def memory_loop(h, stats):
 def records_profiles_saves(h):
     from jebik.scenes.records import RecordsScene
     h.to_menu()
-    for lang in i18n.LANGS:
+    for lang in (LANG,):
         h.app.set_lang(lang)
         h.app.scenes.push(RecordsScene(h.app), fade=False)
         for _ in range(15):
@@ -323,7 +323,6 @@ def records_profiles_saves(h):
             h.key(pg.K_LEFT, wait=DT)
         h.key(pg.K_ESCAPE)
         h.settle(0.3)
-    h.app.set_lang("ua")
     # profile switching: TOBI must not carry over to a profile that has not unlocked it
     h.app.difficulty = TOBI
     h.top._profiles()

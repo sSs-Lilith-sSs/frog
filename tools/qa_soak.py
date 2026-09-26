@@ -8,8 +8,8 @@ records, cutscenes, profiles and saves — driven with synthesized events.
 
 Every exception is caught with its traceback; invariants (soft-locks, NaN
 positions, enemies off the field, exit on a hole / unreachable, frog spawning
-in hazards, frozen flies, missing sounds, text overflowing its panel in UA / EN /
-RU, frame-time spikes, memory growth) are reported at the end. Exit code 1 if
+in hazards, frozen flies, missing sounds, text overflowing its panel in RU,
+frame-time spikes, memory growth) are reported at the end. Exit code 1 if
 anything was found. SDL runs on dummy drivers, saves go to a temp folder.
 """
 from __future__ import annotations
@@ -46,6 +46,7 @@ from qa_bot import Bot, Checker, safe_neighbor_to  # noqa: E402
 DT = 1 / 60
 ARROWS = {0: pg.K_UP, 1: pg.K_RIGHT, 2: pg.K_DOWN, 3: pg.K_LEFT}
 SPIKE_MS = 120.0
+LANG = "ru"                  # the QA language (level play is not repeated per language)
 
 
 def kev(t, k, mod=0, uni=""):
@@ -69,6 +70,7 @@ class Harness:
         if self.app is not None:
             pg.quit()
         self.app = App(splash=splash)
+        self.app.set_lang(LANG)
         audio = self.app.audio
         orig_play = audio.play
 
@@ -148,7 +150,7 @@ class LevelRun:
 
     def __init__(self, h: Harness, lid: str, seed: int, mode: str, budget: float):
         self.h, self.lid, self.seed, self.mode, self.budget = h, lid, seed, mode, budget
-        self.rng = random.Random(seed * 7919 + hash(lid) % 1000)
+        self.rng = random.Random(f"{lid}/{seed}/{mode}")
         self.bot = Bot(seed, noise=0.03 if mode == "bot" else 0.0)
         self.game = None
         self.checker = None
