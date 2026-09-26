@@ -10,6 +10,15 @@ STRINGS: dict[str, tuple[str, str, str]] = {
                     "drift and some melt!",
                     "Жабка прыгнула так высоко, что оказалась на розовых облачках. "
                     "Осторожно: некоторые плывут, а некоторые тают!"),
+    "sky.boss": ("Ісус", "Jesus", "Иисус"),
     "sky.sasat": ("SASAT!", "SASAT!", "SASAT!"),
-    # TODO(sky agent): "sky.boss" (HUD pill name), enemy hints
+    "sky.caw": ("КАР!", "CAW!", "КАР!"),
+    "sky.peck": ("тук!", "peck!", "тук!"),
+    "sky.multiply": ("примноження!", "multiplication!", "умножение!"),
+    "sky.multiply_n": ("+{n} мух!", "+{n} flies!", "+{n} мух!"),
+    "sky.rebuild": ("перебудова!", "rebuild!", "перестройка!"),
+    "sky.halo_caught": ("спіймала німб!", "got the halo!", "поймала нимб!"),
+    "sky.swallow": ("Ластівка", "Swallow", "Ласточка"),
+    "sky.hawk": ("Яструб", "Hawk", "Ястреб"),
+    "sky.crow": ("Ворона", "Crow", "Ворона"),
 }
