@@ -1,0 +1,24 @@
+# Світ 2 «Земля», рівень 4: бос Кабан (2x2) і їжак. Три пні — заманюй кабана в пень!
+id: 2-4
+world: earth
+size: 20x13
+flies_needed: 16
+par_time: 80
+tobi_time: 85
+spawn: H=hedgehog
+boss: boar @ 13 6 hp=3
+unstable: warn=1.5 gone=4 trigger=step
+---
+OOOOOOOOOOOOOOOOOOO#
+O##OOOOOOOOO#OOOOOOO
+O#OOOOXO##OOOOOOOOOO
+OOOOOOOOOOOOOOOOUOOO
+OOOOUOOOOOOOOOOOOOOO
+OOOOOOOOOOOOOOOOOOOO
+OOOXOOOOOOOOOOOOOOOO
+#OOOOOOOOOOOOOOOOOOO
+OOOOOOOOOOOOOOOOOOOO
+OOOOOFOOOOUOOOOOO##O
+OOOOOOO#OOOOOOOHOO#O
+OO#OOOO#OOOOOOOOXOOO
+OOOOOOOOOOO#OOOOOOOO

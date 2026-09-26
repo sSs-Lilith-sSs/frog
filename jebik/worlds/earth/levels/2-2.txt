@@ -1,0 +1,20 @@
+# Світ 2 «Земля», рівень 2: їжак і лисиця (перестрибує ями), трохи землі, що осипається.
+id: 2-2
+world: earth
+size: 16x10
+flies_needed: 12
+par_time: 95
+tobi_time: 105
+spawn: H=hedgehog, L=fox
+unstable: warn=1.5 gone=4 trigger=step
+---
+HOOOOOOOOOOO##OO
+O##OOOOOOOOOO#OO
+OO#OOOUOOOOOOOOO
+OOOOOOOOO##OOLOO
+OOOOXOOOO##OOOOO
+OOOOOOOOOOOOOU#O
+OO##OOOOOOOUOO#O
+OOOOOOFOOOOOOOOO
+OOOOOOO#OOOOXOOO
+OOOOOOO##OOOOOOO

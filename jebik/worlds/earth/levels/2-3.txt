@@ -1,0 +1,21 @@
+# Світ 2 «Земля», рівень 3: усі троє — їжак, лисиця і кріт (лишає ями на 8 с).
+id: 2-3
+world: earth
+size: 18x11
+flies_needed: 14
+par_time: 88
+tobi_time: 95
+spawn: H=hedgehog, L=fox, M=mole
+unstable: warn=1.5 gone=4 trigger=step
+---
+#OOOOOOOOOOOOOOOOO
+OHOOOOOOOOOOMO#OOO
+OOO##OOUOOOOOO#OOO
+OOOO#OOOO##OOO#OOO
+OOOOOOOOO##OOOOUOO
+OOOOOOOOOOOUOOOOOO
+OOOOOOOFOOOOOOOO#O
+OOOOUOOOOOOOOOOO#O
+O#OOOOOOXOOO###OOO
+OOOOOO#OOOOOOOOLOO
+OOOOOOOOOOOOOOOOOO
