@@ -86,13 +86,25 @@ jobs:
       - uses: actions/download-artifact@v8
         with:
           name: jebik-windows.zip
+          path: dl
+      # the artifact may arrive as the zip itself or already unpacked — normalise to dl/jebik-windows.zip
+      - name: Prepare release zip
+        working-directory: dl
+        run: |
+          ls -la
+          if [ ! -f jebik-windows.zip ]; then
+            found=$(find . -name 'jebik-windows.zip' -type f | head -n 1)
+            if [ -n "$found" ]; then mv "$found" jebik-windows.zip
+            else zip -r -q jebik-windows.zip . -x 'jebik-windows.zip'; fi
+          fi
+          unzip -l jebik-windows.zip | tail -n 3
       - uses: softprops/action-gh-release@v3
         with:
           # tag pushes use their own tag; manual runs create the tag on the built commit
           tag_name: ${{ inputs.release_tag || github.ref_name }}
           target_commitish: ${{ github.sha }}
           name: жэбик ${{ inputs.release_tag || github.ref_name }}
-          files: "**/jebik-windows.zip"
+          files: dl/jebik-windows.zip
           generate_release_notes: true
           fail_on_unmatched_files: true
 
