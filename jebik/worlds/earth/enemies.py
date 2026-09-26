@@ -1,17 +1,15 @@
-"""Earth-world enemies (TODO: earth agent).
+"""Earth-world enemies (docs/TZ.md §8) — importing this registers them:
 
-Planned (docs/TZ.md §8), each ``@register_enemy("<kind>")`` subclassing
-:class:`jebik.game.enemy.Enemy` / :class:`jebik.game.enemy.Boss`:
-
-* ``hedgehog`` — rolls straight along the frog's row/column; falls into a pit
-  and is gone for 5 s;
-* ``fox`` — fast chaser, jumps over pits, 1 s recovery after a jump;
-* ``mole`` — a trembling mound underground (``Telegraph("shake")``), pops up
-  under the frog and leaves a pit for 8 s (``world.make_hole(cell, 8)``);
-* ``boar`` (Boss, 2x2) — charges in a line leaving pits, stunned 2 s at the
-  edge, stomp crumbles 5 cells; lure it into a stump (``X`` tiles) ->
-  stunned 3 s (``open_window(3)``) -> tongue hit.
-
-Nothing is registered yet, so earth levels must not reference these kinds.
+* ``hedgehog`` (:mod:`.hedgehog`) — rolls along the frog's clear row/column; a pit hides it for 5 s;
+* ``fox`` (:mod:`.fox`) — fast BFS chaser, leaps single pits, 1 s recovery after a leap;
+* ``mole`` (:mod:`.mole`) — underground mound, tremor under the frog, pops -> pit for 8 s;
+* ``boar`` (:mod:`.boar`, Boss 2x2) — lane charges leaving pits, stumps stun it, stomps crumble cells.
 """
 from __future__ import annotations
+
+from .boar import Boar
+from .fox import Fox
+from .hedgehog import Hedgehog
+from .mole import Mole
+
+__all__ = ["Boar", "Fox", "Hedgehog", "Mole"]

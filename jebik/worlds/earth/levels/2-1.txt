@@ -1,20 +1,19 @@
-# Світ 2 «Земля», рівень 1 — ЗАГЛУШКА (placeholder): трава, ями, пні, земля, що осипається.
-# O — трава, # — яма, U — земля, що осипається, X — пень, F — старт жабки.
-# TODO(earth agent): real map + hedgehog (spawn: H=hedgehog).
+# Світ 2 «Земля», рівень 1: луг, кілька ям і їжак, що котиться прямо.
+# O — трава, # — яма, U — земля, що осипається, X — пень, F — старт жабки, H — їжак.
 id: 2-1
 world: earth
 size: 14x9
 flies_needed: 10
-par_time: 110
+par_time: 100
 tobi_time: 115
-unstable: warn=1.5 gone=4 trigger=step
+spawn: H=hedgehog
 ---
-OOOOOOO#OOOOOO
-O##OOUOOOOXOOO
-OO#OOOO##OOOOO
-OOOOXOO##OUOOO
-O#OOOOOOOOOO#O
-OOOOU#OOOXOO#O
-OFOOO#OOOOOOOO
-OOOOOOOO#OOUOO
-OOXOOOOOOOOOOO
+OOOOOOOOOOOOO#
+O##OOOOOOOOOOO
+O#OOOOO##OOOOO
+OOOXOOO##OOHOO
+OOOOOOOOOOOOOO
+OO##OOOOOOO#OO
+OOOOOFOOOOO#OO
+OOOOOOOOOOOOOO
+#OOOOOO#OOOOOO
