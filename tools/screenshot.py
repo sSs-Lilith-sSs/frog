@@ -241,6 +241,19 @@ def main() -> int:
     d.settle(2.6)
     d.shot("15_lose")
 
+    # --- touch controls: on-screen ⏸ / ⇧ buttons, superjump armed by a tap
+    go_menu(app)
+    d.settle(0.5)
+    from jebik.scenes.touch_hud import SUPER_CENTER
+    app.settings["touch"] = "on"
+    app.scenes.push(GameScene(app, "1-1", seed=7))
+    d.settle(2.0)
+    fx, fy = SUPER_CENTER[0] / app.screen.get_width(), SUPER_CENTER[1] / app.screen.get_height()
+    d.run(DT, [pg.event.Event(pg.FINGERDOWN, finger_id=1, touch_id=0, x=fx, y=fy, dx=0.0, dy=0.0)])
+    d.run(0.2, [pg.event.Event(pg.FINGERUP, finger_id=1, touch_id=0, x=fx, y=fy, dx=0.0, dy=0.0)])
+    d.shot("16_gameplay_touch")
+    app.settings["touch"] = "auto"
+
     print(f"{len(d.shots)} screenshots in {out}")
     pg.quit()
     return 0

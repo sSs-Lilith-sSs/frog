@@ -158,3 +158,19 @@ def test_game_touch_controls(app):
     frames(app, 40)
     frames(app, 1, [finger(pg.FINGERDOWN, 4, *PAUSE_CENTER)])
     assert type(app.scenes.top).__name__ == "PauseScene"
+
+
+def test_finger_drags_slider(app):
+    from jebik.scenes.settings import SettingsScene
+    app.save.create_profile("Кыця")
+    scene = SettingsScene(app)
+    app.scenes.push(scene, fade=False)
+    frames(app, 2)
+    slider = scene.focus.widgets[0]
+    tr = slider.track
+    frames(app, 1, [finger(pg.FINGERDOWN, 7, tr.x + 2, tr.centery)])
+    assert app.settings["music_volume"] < 0.05
+    frames(app, 1, [finger(pg.FINGERMOTION, 7, tr.centerx, tr.centery)])
+    assert abs(app.settings["music_volume"] - 0.5) < 0.02
+    frames(app, 1, [finger(pg.FINGERUP, 7, tr.centerx, tr.centery)])
+    assert not slider.dragging
