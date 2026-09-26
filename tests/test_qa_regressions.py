@@ -140,3 +140,15 @@ def test_landing_on_the_exit_wins_even_with_a_fly_resting_there():
     w.request_move(RIGHT)
     run(w, 0.3)
     assert w.state == WON and w.overeats == 0 and not w.damaged
+
+
+# ---------------------------------------------------------------- audio
+def test_intro_sound_stays_referenced_while_playing(tmp_path, monkeypatch):
+    # with only the channel holding it, the Sound was freed on SDL_mixer's audio thread
+    monkeypatch.setenv("JEBIK_SAVE_DIR", str(tmp_path))
+    from jebik.app import App
+    a = App(splash=True)
+    if not a.audio.enabled:
+        pytest.skip("no audio device")
+    _frames(a, 3)
+    assert a.audio.intro_channel is not None and a.audio.intro_sound is not None

@@ -296,7 +296,7 @@ def tobi_flow(h, levels, runs, stats):
                    f"{lid} dragon at N-1 in TOBI: state={w.state} reason={w.lose_reason}")
             h.run(config.TOBI_RESTART_DELAY + 0.6)
             expect(h, h.game is not g, "tobi", f"{lid} overeat did not restart")
-    soak_levels(h, levels, runs, stats, TOBI, budget=120.0)
+    soak_levels(h, levels, runs, stats, TOBI, budget=60.0)
     h.app.difficulty = EZZZ
 
 

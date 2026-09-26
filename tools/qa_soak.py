@@ -66,6 +66,8 @@ class Harness:
     # ------------------------------------------------------------ app / hooks
     def new_app(self, splash: bool = False):
         from jebik.app import App
+        if pg.mixer.get_init():
+            pg.mixer.stop()                    # the old App's sounds must not be freed mid-play
         self.app = App(splash=splash)       # no pg.quit(): cached fonts must stay valid
         self.app.set_lang(LANG)
         audio = self.app.audio
@@ -149,7 +151,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--runs", type=int, default=4)
     ap.add_argument("--tobi-runs", type=int, default=1)
-    ap.add_argument("--fuzz-seeds", type=int, default=24)
+    ap.add_argument("--fuzz-seeds", type=int, default=48)
     ap.add_argument("--quick", action="store_true")
     ap.add_argument("--only", nargs="*")
     ap.add_argument("--skip-flows", action="store_true")

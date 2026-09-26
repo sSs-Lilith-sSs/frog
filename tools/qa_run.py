@@ -145,7 +145,7 @@ class LevelRun:
                 self._overlay_step()
                 continue
             w = g.world
-            if self.t > self.budget:
+            if self.t > self.budget and w.state == PLAYING:
                 return self.force_win()
             evs = []
             if self.mode == "bot":

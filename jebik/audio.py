@@ -27,6 +27,9 @@ class Audio:
         self._duck_target = 1.0
         self._duck_hold = 0.0
         self.intro_channel: pg.mixer.Channel | None = None
+        # keep the intro Sound alive: if the playing channel held its last reference,
+        # SDL_mixer's audio thread would free it from inside the mixing callback
+        self.intro_sound: pg.mixer.Sound | None = None
         self._missing: set[str] = set()
         try:
             if not pg.mixer.get_init():
@@ -86,6 +89,7 @@ class Audio:
             snd = pg.mixer.Sound(str(path))
         except (pg.error, FileNotFoundError):
             return
+        self.intro_sound = snd
         self.intro_channel = snd.play()
         if self.intro_channel is not None:
             self.intro_channel.set_volume(max(float(self.settings.get("music_volume", .6)),
