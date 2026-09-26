@@ -17,6 +17,11 @@ on:
       - "tests/**"
       - ".github/workflows/build-windows.yml"
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Create a GitHub Release with this tag (e.g. v1.0.0); leave empty for a plain build"
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -72,7 +77,7 @@ jobs:
 
   release:
     name: GitHub Release
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release_tag != '')
     needs: windows
     runs-on: ubuntu-latest
     permissions:
@@ -83,6 +88,10 @@ jobs:
           name: jebik-windows.zip
       - uses: softprops/action-gh-release@v3
         with:
+          # tag pushes use their own tag; manual runs create the tag on the built commit
+          tag_name: ${{ inputs.release_tag || github.ref_name }}
+          target_commitish: ${{ github.sha }}
+          name: жэбик ${{ inputs.release_tag || github.ref_name }}
           files: "**/jebik-windows.zip"
           generate_release_notes: true
           fail_on_unmatched_files: true
