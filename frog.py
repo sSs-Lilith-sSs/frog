@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""«жэбик» — запуск гри: python3 frog.py"""
+"""«жэбик» — запуск гри: python3 frog.py   (перевірка збірки: python3 frog.py --selftest)"""
 import sys
 
 if sys.version_info < (3, 10):
@@ -13,7 +13,28 @@ except ImportError as exc:  # pragma: no cover - friendly message only
 
 import asyncio
 
+from jebik import paths, selftest
 from jebik.app import main
 
+
+def _write_crash_log() -> None:
+    """A windowed .exe has no console: leave the traceback in the save folder."""
+    import traceback
+    try:
+        out = paths.save_dir()
+        out.mkdir(parents=True, exist_ok=True)
+        (out / "crash.log").write_text(traceback.format_exc(), encoding="utf-8")
+    except OSError:
+        pass
+
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    if selftest.requested():
+        sys.exit(selftest.main())
+    try:
+        asyncio.run(main())
+    except Exception:
+        if not paths.is_frozen():
+            raise
+        _write_crash_log()
+        sys.exit(1)

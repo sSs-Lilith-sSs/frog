@@ -190,7 +190,19 @@ Events for renderers: `TILE_WARN/GONE/BACK`, `HOLE_OPEN/CLOSE`, `ROW_SHIFT`.
   `d.go_menu()`. Run `python3 tools/screenshot.py screenshots --only <id>`.
 * Also run `JEBIK_AUTOQUIT=3 python3 frog.py` (headless: `SDL_VIDEODRIVER=dummy`).
 
-## 10. Progression, modes, cutscenes (framework, for reference)
+## 10. Bundled files & the Windows build
+
+The game ships as a PyInstaller onedir build (`packaging/jebik.spec`, CI in
+`.github/workflows/build-windows.yml`). Every non-`.py` file under `jebik/` is
+bundled at the same relative path and every module is a hidden import, so new
+levels, sounds and world modules need no spec changes. **Never build data paths
+from `__file__`** — use `jebik.paths.resource_path("worlds", "<id>", "levels")`
+(or `config.ASSETS_DIR` / `WORLDS_DIR`, which use it); it points into
+`sys._MEIPASS` when frozen. Saves: `jebik.paths.save_dir()`.
+`python3 frog.py --selftest` (also run on the frozen exe by
+`tools/smoke_frozen.py`) loads and plays every playable level of every world.
+
+## 11. Progression, modes, cutscenes (framework, for reference)
 
 * Unlock chain over playable levels (`progression.py`); TOBI PIZDA opens after all
   playable EZZZ levels (sticky profile flag). Progress/records per difficulty.

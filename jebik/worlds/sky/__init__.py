@@ -1,8 +1,7 @@
 """World 3 «Небо»: pink clouds over the abyss, moving rows; swallow / hawk / crow / Jesus."""
 from __future__ import annotations
 
-from pathlib import Path
-
+from ...paths import resource_path
 from ..base import Theme, WorldDef, register_world
 from . import enemies, jesus  # noqa: F401  (registers the enemies)
 from .strings import STRINGS
@@ -14,7 +13,7 @@ WORLD = register_world(WorldDef(
                 ring_bg=(92, 56, 88), tile_tint=(250, 226, 240), tile_ink=(150, 70, 120),
                 fill=(70, 40, 90), text_outline=(110, 40, 90)),
     playable=(1, 2, 3, 4),
-    levels_dir=Path(__file__).parent / "levels",
+    levels_dir=resource_path("worlds", "sky", "levels"),
     art_module=__name__ + ".art",
     strings=STRINGS,
     story=("sky.story.1",),

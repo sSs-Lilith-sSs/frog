@@ -1,0 +1,108 @@
+# Builds «жэбик» for Windows (PyInstaller, onedir, zipped) on every push that
+# touches the game, on demand (Actions -> "Build Windows exe" -> Run workflow)
+# and for tags v* — those also get a GitHub Release with jebik-windows.zip.
+name: Build Windows exe
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]                     # path filters are not applied to tag pushes
+    paths:
+      - "jebik/**"
+      - "frog.py"
+      - "requirements*.txt"
+      - "pytest.ini"
+      - "packaging/**"
+      - "tools/**"
+      - "tests/**"
+      - ".github/workflows/build-windows.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+env:
+  SDL_VIDEODRIVER: dummy             # headless: tests and the smoke run
+  SDL_AUDIODRIVER: dummy
+  PYTHONUTF8: "1"                    # Cyrillic in test output on the Windows console
+  PYINSTALLER_REQ: "pyinstaller>=6.10,<7"
+
+jobs:
+  windows:
+    name: Windows exe
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements*.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt "${{ env.PYINSTALLER_REQ }}"
+
+      - name: Tests (headless)
+        run: python -m pytest -q
+
+      - name: Build (PyInstaller)
+        run: pyinstaller --noconfirm --clean packaging/jebik.spec
+
+      - name: Smoke-run jebik.exe (JEBIK_AUTOQUIT=3, selftest of all levels)
+        run: python tools/smoke_frozen.py dist/jebik
+
+      - name: Zip dist/jebik -> jebik-windows.zip
+        run: python -m zipfile -c jebik-windows.zip dist/jebik
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          path: jebik-windows.zip
+          archive: false             # download = this zip itself, not a zip in a zip
+          if-no-files-found: error
+          retention-days: 30
+
+  release:
+    name: GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: windows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: jebik-windows.zip
+      - uses: softprops/action-gh-release@v3
+        with:
+          files: "**/jebik-windows.zip"
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+
+  linux:
+    name: Linux build (sanity check)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements*.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt "${{ env.PYINSTALLER_REQ }}"
+      - name: Build (PyInstaller)
+        run: pyinstaller --noconfirm --clean packaging/jebik.spec
+      - name: Smoke-run the frozen binary
+        run: python tools/smoke_frozen.py dist/jebik

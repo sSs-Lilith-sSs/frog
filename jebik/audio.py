@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pygame as pg
 
-from . import config
+from . import config, paths
 
 # per-effect loudness trim (frequent sounds are quieter)
 SFX_TRIM = {"jump": 0.35, "tongue": 0.45, "eat": 0.8, "splash": 0.8, "hit": 0.9,
@@ -66,11 +66,14 @@ class Audio:
 
     # ------------------------------------------------------------ studio intro
     def intro_path(self):
-        """The user's ``intro_custom.ogg|wav`` if present, else the generated fanfare."""
-        for name in config.INTRO_CUSTOM:
-            path = config.AUDIO_DIR / name
-            if path.is_file():
-                return path
+        """The user's ``intro_custom.ogg|wav`` if present, else the generated fanfare.
+        In the packaged game it may also sit next to ``jebik.exe``."""
+        dirs = [config.AUDIO_DIR] + ([paths.app_dir()] if paths.is_frozen() else [])
+        for folder in dirs:
+            for name in config.INTRO_CUSTOM:
+                path = folder / name
+                if path.is_file():
+                    return path
         path = config.AUDIO_DIR / config.INTRO_FANFARE
         return path if path.is_file() else None
 

@@ -5,14 +5,15 @@ file imports pygame, so it is safe to use from headless tests.
 """
 from __future__ import annotations
 
-from pathlib import Path
+from .paths import package_dir, resource_path
 
 # ---------------------------------------------------------------- paths
-PACKAGE_DIR = Path(__file__).resolve().parent
-ASSETS_DIR = PACKAGE_DIR / "assets"
+# resource_path() also works inside a PyInstaller build (see jebik/paths.py)
+PACKAGE_DIR = package_dir()
+ASSETS_DIR = resource_path("assets")
 FONT_DIR = ASSETS_DIR / "fonts"
 AUDIO_DIR = ASSETS_DIR / "audio"
-WORLDS_DIR = PACKAGE_DIR / "worlds"
+WORLDS_DIR = resource_path("worlds")      # <id>/levels/*.txt, <id>/audio/*.wav
 FONT_BOLD = FONT_DIR / "MPLUSRounded1c-Bold.ttf"
 FONT_REGULAR = FONT_DIR / "MPLUSRounded1c-Regular.ttf"
 

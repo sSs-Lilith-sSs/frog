@@ -54,6 +54,45 @@ pip install -r requirements.txt
 py frog.py
 ```
 
+## Як отримати .exe (Windows)
+
+Готову гру для Windows збирає GitHub Actions (PyInstaller) — Python ставити не треба.
+
+1. **Реліз** (найпростіше): на сторінці репозиторію → **Releases** → останній
+   `v…` → завантажити `jebik-windows.zip`.
+   **Або свіжа збірка з будь-якої гілки:** вкладка **Actions** → workflow
+   «Build Windows exe» → останній зелений запуск → унизу, у розділі
+   **Artifacts** — `jebik-windows.zip` (потрібно увійти в GitHub; артефакти
+   зберігаються 30 днів). Запустити збірку вручну: **Run workflow**.
+2. Розпакувати архів **повністю** (правою кнопкою → «Видобути все…») у будь-яку
+   теку, наприклад у «Документи». З'явиться тека `jebik` з `jebik.exe` і текою
+   `_internal` (вона потрібна: не видаляйте її й не переносьте `jebik.exe` окремо;
+   запуск прямо з zip без розпакування не спрацює).
+3. Запустити `jebik.exe`. Можна зробити ярлик на робочий стіл
+   (правою кнопкою → «Надіслати» → «Робочий стіл»).
+
+> **Windows SmartScreen.** Програма не підписана сертифікатом, тож при першому
+> запуску Windows може показати «Windows захистив ваш ПК». Натисніть
+> **«Докладніше» (More info) → «Виконати все одно» (Run anyway)**. Це
+> одноразово. Якщо архів блокується ще до розпакування — правою кнопкою на zip →
+> «Властивості» → внизу галочка «Розблокувати» → OK.
+
+Збереження `.exe`-версії — у `%APPDATA%\jebik\save.json` (вставте
+`%APPDATA%\jebik` в адресний рядок Провідника). Якщо у вас уже є
+`%USERPROFILE%\.jebik\save.json` від запуску з Python, гра далі користується ним.
+Оновлення гри = розпакувати новий архів замість старої теки, прогрес
+лишається. Свою музику для заставки (`intro_custom.ogg` або `.wav`) можна
+покласти поруч із `jebik.exe`. Якщо гра раптом закрилась — подробиці
+у `crash.log` у тій самій теці збережень.
+
+Зібрати самостійно (Windows або Linux, Python 3.11):
+
+```bash
+pip install -r requirements.txt pyinstaller
+pyinstaller --noconfirm --clean packaging/jebik.spec   # -> dist/jebik/
+python3 tools/smoke_frozen.py dist/jebik               # headless-перевірка збірки
+```
+
 ## Керування
 
 | Дія | Клавіші |
@@ -89,7 +128,8 @@ py frog.py
 ## Збереження
 
 Профілі, прогрес і налаштування зберігаються у `~/.jebik/save.json`
-(теку можна змінити змінною оточення `JEBIK_SAVE_DIR`). Пошкоджений файл
+(у Windows — `%APPDATA%\jebik\save.json`, якщо ще немає старого
+`~/.jebik/save.json`; теку можна змінити змінною оточення `JEBIK_SAVE_DIR`). Пошкоджений файл
 відкладається як `save.json.corrupt`, гра стартує з чистого.
 
 ## Для розробки
@@ -101,6 +141,8 @@ python3 tools/screenshot.py screenshots   # PNG усіх екранів (headles
 python3 tools/gen_audio.py                # перегенерувати музику й звуки
 JEBIK_AUTOQUIT=3 python3 frog.py          # запустити і вийти через 3 с
 JEBIK_NO_SPLASH=1 python3 frog.py         # без заставки студії
+python3 frog.py --selftest                # перевірка: шрифти, звуки, усі рівні всіх світів
+python3 tools/make_icon.py                # перемалювати packaging/icon.ico (жабка на лататі)
 ```
 
 Структура:

@@ -1,6 +1,7 @@
 """Persistent save data: profiles, progress and settings (JSON).
 
-Stored at ``~/.jebik/save.json`` (or ``$JEBIK_SAVE_DIR/save.json``). Loading
+Stored at ``~/.jebik/save.json`` (Windows: ``%APPDATA%\\jebik\\save.json`` unless an
+old ``~/.jebik/save.json`` exists; ``$JEBIK_SAVE_DIR/save.json`` overrides). Loading
 never raises: a missing file gives defaults, a corrupt one is moved aside to
 ``save.json.corrupt`` and defaults are used.
 """
@@ -13,15 +14,14 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from . import config
+from . import config, paths
 
 SAVE_VERSION = 2
 MAX_NAME_LEN = 16
 
 
 def save_dir() -> Path:
-    env = os.environ.get("JEBIK_SAVE_DIR")
-    return Path(env).expanduser() if env else Path.home() / ".jebik"
+    return paths.save_dir()
 
 
 def save_path() -> Path:

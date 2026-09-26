@@ -12,3 +12,8 @@ __pycache__/
 screenshots/
 *.log
 .claude/
+
+# build outputs (PyInstaller)
+build/
+dist/
+jebik-*.zip

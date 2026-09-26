@@ -1,8 +1,7 @@
 """World 1 «Вода»: lily pads over water (style B), snake / pike / heron / whale."""
 from __future__ import annotations
 
-from pathlib import Path
-
+from ...paths import resource_path
 from ..base import Theme, WorldDef, register_world
 from . import heron, pike, snake, whale  # noqa: F401  (register the enemies)
 from .strings import STRINGS
@@ -14,7 +13,7 @@ WORLD = register_world(WorldDef(
                 ring_bg=(60, 90, 70), tile_tint=(205, 236, 245), tile_ink=(40, 100, 140),
                 fill=(45, 125, 170), text_outline=(40, 70, 40)),
     playable=(1, 2, 3, 4),
-    levels_dir=Path(__file__).parent / "levels",
+    levels_dir=resource_path("worlds", "water", "levels"),
     art_module=__name__ + ".art",
     strings=STRINGS,
     story=("water.story.1",),
