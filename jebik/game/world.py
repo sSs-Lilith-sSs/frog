@@ -176,6 +176,9 @@ class World:
         f.state = fs.IDLE
         f.invuln = config.INVULN_TIME
         f.splash_cell = None
+        for e in self.enemies:          # no spawn camping: nearby snakes back off
+            if manhattan(e.head, f.cell) <= config.SNAKE_SIGHT:
+                e.start_retreat()
         self.events.append(Event(ev.RESPAWN, cell=f.cell))
 
     def _safe_respawn_cell(self, preferred: Cell) -> Cell:

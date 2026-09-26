@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Headless screenshots of every screen, driven by scripted input.
 
-    python3 tools/screenshot.py [out_dir]      (default: ./screenshots)
+    python3 tools/screenshot.py [out_dir] [--lang ua|en|ru]
+
+``out_dir`` defaults to ./screenshots. ``--lang`` picks the language of all
+screens except the three main-menu shots (UA / EN / RU are always taken).
 
 Runs with SDL's dummy video/audio drivers and a throw-away save directory.
 """
@@ -22,7 +25,7 @@ import pygame as pg  # noqa: E402
 
 from jebik.app import App  # noqa: E402
 from jebik.game import frog as fs  # noqa: E402
-from jebik.game.grid import DIRS, step  # noqa: E402
+from jebik.game.grid import step  # noqa: E402
 
 DT = 1 / 60
 
@@ -72,9 +75,15 @@ class Driver:
 
 
 def main() -> int:
-    out = Path(sys.argv[1] if len(sys.argv) > 1 else ROOT / "screenshots").resolve()
+    import argparse
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("out", nargs="?", default=str(ROOT / "screenshots"))
+    ap.add_argument("--lang", choices=("ua", "en", "ru"), default="ua")
+    args = ap.parse_args()
+    out = Path(args.out).resolve()
     d = Driver(out)
     app = d.app
+    app.set_lang(args.lang)
 
     # --- profile: first launch -> type a name (Cyrillic via TEXTINPUT)
     d.settle(0.5)
@@ -83,7 +92,6 @@ def main() -> int:
     d.shot("01_profile_create")
     d.key(pg.K_RETURN)
     d.settle(0.6)
-    d.shot("03_main_menu_ua")
 
     # --- main menu in EN (and RU)
     app.set_lang("en")
@@ -93,6 +101,9 @@ def main() -> int:
     d.settle(0.3)
     d.shot("05_main_menu_ru")
     app.set_lang("ua")
+    d.settle(0.1)
+    d.shot("03_main_menu_ua")
+    app.set_lang(args.lang)
 
     # --- profile list (second profile exists)
     app.save.create_profile("Жабка")
@@ -163,7 +174,7 @@ def main() -> int:
     for kind, c in zip(("gold", "firefly", "dragon"), (free[3], free[len(free) // 2], free[-6])):
         w.flies.spawn_at(kind, c, rest=8)
     d.key(pg.K_SPACE, wait=DT)
-    d.run(0.07)
+    d.run(0.13)                                    # Space waits 60 ms for an aim arrow
     d.shot("10_gameplay_tongue")
     d.settle(0.5)
 

@@ -32,6 +32,7 @@ class Hud:
         self.bar.fill(config.C_HUD_BG)
         pg.draw.line(self.bar, config.C_HUD_LINE, (0, HB), (W, HB), 4)
         self.fly_icon = fly_sprite(1.3, "fly")
+        self.pause_rect = pg.Rect(W - 330, 0, 330, HB)     # click = pause
 
     def deny_super(self) -> None:
         self.super_shake = 0.35

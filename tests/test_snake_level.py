@@ -123,3 +123,27 @@ def test_parse_meta_and_map():
     assert lv.flies_needed == 7 and lv.par_time == 45
     assert lv.frog_start == (1, 0) and lv.snake_starts == ((0, 1),)
     assert lv.pads == {(1, 0), (2, 0), (0, 1), (1, 1)}
+
+
+def test_field_cell_size_fits_all_planned_levels():
+    from jebik import config
+    from jebik.scenes.game_view import cell_size, field_rect
+    sizes = [(12, 8), (14, 9), (16, 10), (18, 12), (14, 9), (16, 10), (18, 11), (20, 13),
+             (16, 10), (18, 11), (20, 12), (22, 14)]
+    for w, h in sizes:
+        lv = make_level(["F" + "O" * (w - 1)] + ["O" * w] * (h - 1))
+        cs = cell_size(lv)
+        assert cs >= 64, (w, h, cs)          # the spec's base cell always fits
+        r = field_rect(lv, cs)
+        assert r.left >= 0 and r.right <= config.SCREEN_W
+        assert r.top >= config.HUD_H and r.bottom <= config.SCREEN_H
+    assert cell_size(make_level(["F" + "O" * 11] + ["O" * 12] * 7)) == config.MAX_CELL
+
+
+def test_nearby_snake_retreats_after_water_respawn():
+    w = make_world(["OOOOOOO", "F#OOOOO"], enemies=False)
+    snake = Snake(level=w.level, rng=random.Random(0), cells=[(4, 0), (5, 0)])
+    w.enemies.append(snake)
+    w.request_move(1)                           # splash
+    run(w, config.HOP_TIME + config.SPLASH_TIME + 0.05)
+    assert snake.retreat > 0 or snake.mode == "retreat"

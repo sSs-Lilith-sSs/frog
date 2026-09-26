@@ -8,11 +8,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import pytest  # noqa: E402
 
-from jebik.game.grid import parse_level  # noqa: E402
+from jebik.game.grid import Level, parse_level  # noqa: E402
 from jebik.game.world import World  # noqa: E402
 
 
-def make_level(rows: list[str], flies_needed: int = 5, par: float = 60) -> "Level":
+def make_level(rows: list[str], flies_needed: int = 5, par: float = 60) -> Level:
     text = f"id: 9-9\nflies_needed: {flies_needed}\npar_time: {par}\n---\n" + "\n".join(rows)
     return parse_level(text)
 

@@ -23,12 +23,11 @@ MAX_DT = 1 / 20            # clamp long frames so physics never explodes
 HUD_H = 110
 TRANSITION_TIME = 0.28     # scene cross-fade, seconds
 
-# Field layout. The spec's base cell is 64 px (fits the biggest 22x14 level);
+# Field layout. The spec's base cell is 64 px (the biggest 22x14 level gets it);
 # small early levels get bigger cells so the pond does not look lost.
-BASE_CELL = 64
 MAX_CELL = 80
 FIELD_MARGIN_X = 200       # min free space left/right of the field
-FIELD_MARGIN_Y = 60        # min free space above/below the field (below HUD)
+FIELD_MARGIN_Y = 30        # min free space above/below the field (below HUD)
 
 # Supersampling factors for the drawn art.
 SS_SPRITE = 4              # small cached sprites (frog, flies, icons)
@@ -68,7 +67,6 @@ DRAGON_CHANCE = 0.14               # chance a new counted fly is a dragonfly
 GOLD_INTERVAL = (22.0, 34.0)       # seconds between golden flies
 FIREFLY_INTERVAL = (30.0, 40.0)    # seconds between fireflies
 SPECIAL_LIFETIME = 13.0            # golden/firefly leave after this long
-FLY_AVOID_FROG = 1                 # flies do not pick targets this close to frog
 
 FLY_VALUE = {"fly": 1, "dragon": 2, "gold": 0, "firefly": 0}
 

@@ -17,6 +17,7 @@ from .hud import Hud
 DIR_KEYS = {pg.K_UP: 0, pg.K_w: 0, pg.K_RIGHT: 1, pg.K_d: 1,
             pg.K_DOWN: 2, pg.K_s: 2, pg.K_LEFT: 3, pg.K_a: 3}
 FIRST_REPEAT = 0.2          # a held key starts auto-hopping after this
+TONGUE_CHORD = 0.06         # Space waits this long for an arrow (Space + arrow = aim)
 
 
 class GameScene(Scene):
@@ -31,6 +32,7 @@ class GameScene(Scene):
         self.hud = Hud(self.world, profile.name if profile else "?")
         self.held: list[int] = []
         self.repeat = 0.0
+        self.tongue_pending = 0.0
         self.new_best = False
         self.overlay_shown = False
         self.effects.banner(i18n.t("game.go", n=self.level.flies_needed), "",
@@ -62,20 +64,29 @@ class GameScene(Scene):
                     self.held.remove(d)
                 self.held.append(d)
                 self.repeat = FIRST_REPEAT
-                if pg.key.get_pressed()[pg.K_SPACE]:
+                if self.tongue_pending > 0 or pg.key.get_pressed()[pg.K_SPACE]:
+                    # holding Space: arrows aim the tongue instead of hopping
+                    self.tongue_pending = 0.0
                     w.request_tongue(d)
                 else:
                     w.request_move(d, bool(event.mod & pg.KMOD_SHIFT))
             elif event.key == pg.K_SPACE:
-                w.request_tongue()
+                self.tongue_pending = TONGUE_CHORD
         elif event.type == pg.KEYUP and event.key in DIR_KEYS:
             d = DIR_KEYS[event.key]
             if d in self.held and not any(pg.key.get_pressed()[k] for k, v in DIR_KEYS.items() if v == d):
                 self.held.remove(d)
         elif event.type == pg.WINDOWFOCUSLOST:
             self.pause()
+        elif event.type == pg.MOUSEBUTTONDOWN and event.button == 1 \
+                and self.hud.pause_rect.collidepoint(event.pos):
+            self.pause()
 
     def _auto_repeat(self, dt: float) -> None:
+        if self.tongue_pending > 0:
+            self.tongue_pending -= dt
+            if self.tongue_pending <= 0:
+                self.world.request_tongue()
         self.repeat -= dt
         f = self.world.frog
         if not self.held or self.repeat > 0 or not f.can_act or f.buffered is not None:
@@ -88,6 +99,7 @@ class GameScene(Scene):
         if shift and f.super_cd > 0:
             return
         self.world.request_move(d, shift)
+        self.repeat = (config.SUPERJUMP_TIME if shift else config.HOP_TIME) + config.HOLD_REPEAT_DELAY
 
     # ------------------------------------------------------------ update
     def update(self, dt: float) -> None:

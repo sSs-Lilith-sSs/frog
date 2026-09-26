@@ -5,7 +5,7 @@ import pygame as pg
 
 from .. import config, i18n
 from ..art.chars import frog_front_sprite
-from ..art.common import draw_text, rounded_panel, star_sprite
+from ..art.common import draw_text, star_sprite
 from ..save import MAX_NAME_LEN
 from ..ui.widgets import Button, TextInput
 from .common import W, MenuScene, draw_hint, draw_logo, draw_panel
@@ -157,6 +157,10 @@ class ProfileScene(MenuScene):
     # ------------------------------------------------------------ scene
     def enter(self) -> None:
         pg.key.start_text_input()
+        try:
+            pg.key.set_text_input_rect(self.input.rect)
+        except (AttributeError, pg.error):
+            pass
 
     def leave(self) -> None:
         pg.key.stop_text_input()

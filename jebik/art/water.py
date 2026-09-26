@@ -58,18 +58,23 @@ def water_background(gw: int, gh: int, cs: int, holes: set[tuple[int, int]],
                                         c * (1 + dx) - 2 * mg, c * (1 + dy) - 2 * mg))
         if {(x + 1, y), (x, y + 1), (x + 1, y + 1)} <= holes:
             pg.draw.rect(m, white, (x * c + mg, y * c + mg, 2 * c - 2 * mg, 2 * c - 2 * mg))
-    a = pg.surfarray.array_red(m).astype(np.float32) / 255
-    a = blur(a, int(c * .12))                         # soft rounded outline
-    inside = np.clip((a - .35) / .3, 0, 1)            # pool alpha
-    depth = np.clip(blur(inside, int(c * .14)), 0, 1)  # deeper toward the middle
-    base = pg.surfarray.pixels3d(s).astype(np.float32)
-    shallow = np.array((70, 155, 190), np.float32)
-    deep = np.array((12, 45, 85), np.float32)
-    col = shallow[None, None, :] * (1 - depth[..., None]) + deep[None, None, :] * depth[..., None]
-    base = base * (1 - inside[..., None]) + col * inside[..., None]
-    rim = np.clip(1 - abs(a - .36) / .05, 0, 1) * .6   # light foam rim
-    base = base * (1 - rim[..., None]) + np.array((190, 232, 238), np.float32) * rim[..., None]
-    pg.surfarray.blit_array(s, base.astype(np.uint8))
+    if holes:
+        a = pg.surfarray.array_red(m).astype(np.float32) / 255
+        a = blur(a, int(c * .12))                         # soft rounded outline
+        inside = np.clip((a - .35) / .3, 0, 1)            # pool alpha
+        depth = np.clip(blur(inside, int(c * .14)), 0, 1)  # deeper toward the middle
+        rim = np.clip(1 - abs(a - .36) / .05, 0, 1) * .6   # light foam rim
+        sel = (inside > 0) | (rim > 0)                     # only touch pixels near pools
+        px = pg.surfarray.pixels3d(s)
+        base = px[sel].astype(np.float32)
+        ins, dep, rm = inside[sel][:, None], depth[sel][:, None], rim[sel][:, None]
+        shallow = np.array((70, 155, 190), np.float32)
+        deep = np.array((12, 45, 85), np.float32)
+        col = shallow * (1 - dep) + deep * dep
+        base = base * (1 - ins) + col * ins
+        base = base * (1 - rm) + np.array((190, 232, 238), np.float32) * rm
+        px[sel] = base.astype(np.uint8)
+        del px
     for (x, y) in sorted(holes):   # a few ripples only on the deepest spots
         cx, cy = x * c + c // 2, y * c + c // 2
         if rnd.random() < .6:

@@ -112,6 +112,12 @@ class PauseScene(Overlay):
             return
         super().handle(event)
 
+    def draw(self, surf: pg.Surface) -> None:
+        if self.app.scenes.top is not self:      # settings opened on top of us
+            surf.blit(self.dim, (0, 0))
+            return
+        super().draw(surf)
+
     def draw_content(self, surf: pg.Surface) -> None:
         draw_text(surf, i18n.t("pause.title"), 72, (self.panel.centerx, self.panel.y + 84), config.C_INK)
 
@@ -183,9 +189,11 @@ class WinScene(Overlay):
             y += 34
         if self.new_best and self.time > 1.3:
             wob = math.sin(self.time * 4) * 4
+            if self.time < 1.6:                  # pop in
+                wob += (1.6 - self.time) * 40
             badge = text_surface(i18n.t("win.best"), 34, (255, 235, 120), True, (170, 70, 40), 4)
-            badge = pg.transform.rotozoom(badge, 8 + wob, 1.0)
-            surf.blit(badge, badge.get_rect(center=(p.right - 150, p.y + 318)))
+            badge = pg.transform.rotozoom(badge, wob * 0.6, 1.0)
+            surf.blit(badge, badge.get_rect(center=(p.centerx, p.y + 530)))
 
 
 class LoseScene(Overlay):

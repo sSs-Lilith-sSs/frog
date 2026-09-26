@@ -18,15 +18,17 @@ def lerp(a: Color, b: Color, t: float) -> tuple[int, int, int]:
 
 
 def blur(a: np.ndarray, k: int) -> np.ndarray:
-    """Separable box blur (radius ``k``) with edge padding — from the mockup."""
+    """Separable box blur (radius ``k``) with edge padding — from the mockup.
+
+    Each pass runs a cumulative sum along the contiguous axis and transposes,
+    which is several times faster than summing along axis 0."""
     if k <= 0:
         return a
-    for ax in (0, 1):
-        pad = [(k + 1, k) if i == ax else (0, 0) for i in range(a.ndim)]
-        c = np.cumsum(np.pad(a, pad, mode="edge"), axis=ax)
-        n = c.shape[ax]
-        a = (np.take(c, range(2 * k + 1, n), axis=ax)
-             - np.take(c, range(0, n - 2 * k - 1), axis=ax)) / (2 * k + 1)
+    a = np.asarray(a, dtype=np.float32)
+    for _ in range(2):
+        p = np.pad(a, ((0, 0), (k + 1, k)), mode="edge")
+        c = np.cumsum(p, axis=1, dtype=np.float32)
+        a = np.ascontiguousarray(((c[:, 2 * k + 1:] - c[:, :-2 * k - 1]) / (2 * k + 1)).T)
     return a
 
 
@@ -47,10 +49,13 @@ def smooth_down(src: pg.Surface, size: tuple[int, int]) -> pg.Surface:
     alpha = pg.surfarray.array_alpha(small).astype(np.float32)
     a = alpha[..., None]
     straight = np.where(a > 0, rgb * 255.0 / np.maximum(a, 1.0), 0.0)
-    # colour bleed for invisible pixels: alpha-weighted blur of colour
-    wsum = blur(alpha, 3)
-    csum = np.stack([blur(rgb[..., i], 3) for i in range(3)], axis=-1)
-    bleed = csum * 255.0 / np.maximum(wsum[..., None], 1e-3)
+    # colour bleed for invisible pixels: a blurred copy of the premultiplied
+    # sprite (down + up smoothscale), un-premultiplied
+    tiny = pg.transform.smoothscale(small, (max(1, size[0] // 6), max(1, size[1] // 6)))
+    soft = pg.transform.smoothscale(tiny, size)
+    srgb = pg.surfarray.array3d(soft).astype(np.float32)
+    sa = pg.surfarray.array_alpha(soft).astype(np.float32)[..., None]
+    bleed = srgb * 255.0 / np.maximum(sa, 1.0)
     out_rgb = np.where(a > 0, straight, bleed)
     out = pg.Surface(size, pg.SRCALPHA)
     pg.surfarray.blit_array(out, np.clip(out_rgb, 0, 255).astype(np.uint8))
