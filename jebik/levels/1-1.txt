@@ -1,0 +1,17 @@
+# Світ 1 «Вода», рівень 1 — перший ставок: змія та 5 мух.
+# O — латаття, # — вода, F — старт жабки, S — старт змії.
+id: 1-1
+world: water
+size: 12x8
+flies_needed: 5
+par_time: 60
+enemies: snake
+---
+OOOOOO#OOOOO
+O##OOOOOOOSO
+OO#OO##OO#OO
+OOOOO##OO#OO
+O#OOOOOOOOOO
+OOOO#OOO##OO
+OFOO#OOOO#OO
+OOOOOOO#OOOO

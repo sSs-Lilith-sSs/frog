@@ -1,0 +1,13 @@
+# virtual environments
+.venv/
+venv/
+env/
+
+# python caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# local output
+screenshots/
+*.log
