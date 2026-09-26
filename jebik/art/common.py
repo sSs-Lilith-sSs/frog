@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import math
+from contextlib import contextmanager
 from functools import lru_cache
 from typing import Callable
 
@@ -30,6 +31,20 @@ def blur(a: np.ndarray, k: int) -> np.ndarray:
         c = np.cumsum(p, axis=1, dtype=np.float32)
         a = np.ascontiguousarray(((c[:, 2 * k + 1:] - c[:, :-2 * k - 1]) / (2 * k + 1)).T)
     return a
+
+
+@contextmanager
+def clipped(surf: pg.Surface, rect: pg.Rect | None):
+    """Draw inside ``rect`` only (intersected with the current clip); None = as is."""
+    if rect is None:
+        yield
+        return
+    old = surf.get_clip()
+    surf.set_clip(old.clip(rect))
+    try:
+        yield
+    finally:
+        surf.set_clip(old)
 
 
 # ---------------------------------------------------------------- supersampling

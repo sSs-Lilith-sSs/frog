@@ -10,10 +10,11 @@ import pygame as pg
 
 from . import config, paths
 
-# per-effect loudness trim (frequent sounds are quieter)
-SFX_TRIM = {"jump": 0.35, "tongue": 0.45, "eat": 0.8, "splash": 0.8, "hit": 0.9,
-            "win": 0.8, "lose": 0.8, "superjump": 0.6, "powerup": 0.7, "click": 0.5,
-            "overeat": 0.9, "full": 0.7, "denied": 0.45, "tick": 0.35}
+# per-effect loudness trim, balanced on the files' loudness (frequent sounds are
+# quieter); world sounds default to 0.7 and pass their own volume
+SFX_TRIM = {"jump": 0.55, "tongue": 0.47, "eat": 1.0, "splash": 0.92, "hit": 1.0,
+            "win": 1.0, "lose": 0.66, "superjump": 0.49, "powerup": 0.7, "click": 0.59,
+            "overeat": 1.0, "full": 0.81, "denied": 0.71, "tick": 0.51}
 
 
 class Audio:
@@ -131,17 +132,19 @@ class Audio:
         self.sounds[name] = snd
         return snd
 
-    def play(self, name: str, volume: float = 1.0) -> None:
+    def play(self, name: str, volume: float = 1.0) -> bool:
+        """Play an effect; False if it does not exist (or audio is off), so a
+        caller can fall back: ``audio.play("sky.boss_hit") or audio.play("hit")``."""
         if not self.enabled:
-            return
+            return False
         snd = self.sounds.get(name)
         if snd is None and "." in name:
             snd = self._world_sound(name)
         if snd is None:
-            return
+            return False
         vol = float(self.settings.get("sfx_volume", .8)) * SFX_TRIM.get(name, .7) * volume
-        if vol <= 0.001:
-            return
-        ch = snd.play()
-        if ch is not None:
-            ch.set_volume(vol)
+        if vol > 0.001:
+            ch = snd.play()
+            if ch is not None:
+                ch.set_volume(min(1.0, vol))
+        return True

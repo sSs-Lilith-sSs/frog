@@ -59,11 +59,15 @@ def water_background(gw: int, gh: int, cs: int, holes: set[tuple[int, int]],
         if {(x + 1, y), (x, y + 1), (x + 1, y + 1)} <= holes:
             pg.draw.rect(m, white, (x * c + mg, y * c + mg, 2 * c - 2 * mg, 2 * c - 2 * mg))
     if holes:
-        a = pg.surfarray.array_red(m).astype(np.float32) / 255
-        a = blur(a, int(c * .12))                         # soft rounded outline
+        # the pool shading is all blur: compute it at screen resolution (the
+        # result is scaled down to it anyway) and repeat it onto the x ss canvas
+        a = pg.surfarray.array_red(pg.transform.smoothscale(m, (gw * cs, gh * cs))).astype(np.float32) / 255
+        a = blur(a, int(cs * .12))                        # soft rounded outline
         inside = np.clip((a - .35) / .3, 0, 1)            # pool alpha
-        depth = np.clip(blur(inside, int(c * .14)), 0, 1)  # deeper toward the middle
+        depth = np.clip(blur(inside, int(cs * .14)), 0, 1)  # deeper toward the middle
         rim = np.clip(1 - abs(a - .36) / .05, 0, 1) * .6   # light foam rim
+        if ss > 1:
+            inside, depth, rim = (np.repeat(np.repeat(v, ss, 0), ss, 1) for v in (inside, depth, rim))
         sel = (inside > 0) | (rim > 0)                     # only touch pixels near pools
         px = pg.surfarray.pixels3d(s)
         base = px[sel].astype(np.float32)

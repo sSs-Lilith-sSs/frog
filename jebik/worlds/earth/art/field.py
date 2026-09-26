@@ -49,6 +49,25 @@ def shadow(w: int, h: int, alpha: int = 70) -> pg.Surface:
 class EarthField(FieldRenderer):
     fill = (60, 44, 28)
     grid_color = (255, 255, 255, 40)
+    # sounds from tools/gen_audio_earth.py; volumes balance the files' loudness,
+    # a third value = min gap (a stomp cracks five tiles at once -> one sound)
+    event_sounds = {
+        "earth.hedgehog_curl": ("earth.hedgehog_roll", 1.4),
+        "earth.hedgehog_bump": ("earth.bump", 1.0),
+        "earth.hedgehog_fall": ("earth.fall", 1.2),
+        "earth.fox_jump": ("earth.fox_leap", 1.25),
+        "earth.fox_land": ("earth.fox_land", 1.2),
+        "earth.mole_tremor": ("earth.mole_tremor", 1.15),
+        "earth.mole_pop": ("earth.mole_pop", 1.35),
+        "earth.boar_charge": ("earth.charge", 1.3),
+        "earth.stomp": ("earth.stomp", 1.2),
+        "earth.boar_crash": ("earth.crash", 1.3),
+        "earth.stump_break": ("earth.stump", 1.4, .2),
+        "earth.stump_grow": ("earth.stump_grow", .7),
+        ev.TILE_WARN: ("earth.crumble_warn", 1.1, .35),
+        ev.TILE_GONE: ("earth.crumble", .95, .3),
+    }
+    tell_sounds = {"charge": ("earth.boar_snort", 1.2), "stomp": ("earth.boar_snort", 1.2)}
 
     def _paint(self):
         cache = self.level_cache()
@@ -114,6 +133,7 @@ class EarthField(FieldRenderer):
     def on_event(self, event: ev.Event, view, effects, audio) -> bool:
         k = self.k
         kind = event.kind
+        self.event_sound(event, audio)
         if kind in (ev.TILE_GONE, ev.HOLE_OPEN) and event.cell is not None:
             x, y = view.to_px(event.cell)
             effects.burst(x, y, DIRT, n=10, speed=120 * k, size=4 * k, life=0.6, gravity=500 * k, up=120 * k)
@@ -126,7 +146,6 @@ class EarthField(FieldRenderer):
             x, y = view.to_px(event.cell)
             effects.burst(x, y, CHIPS, n=18, speed=260 * k, size=6 * k, life=0.8, gravity=700 * k, up=200 * k)
             effects.shake(10 * k)
-            audio.play("earth.stump")
             return True
         if kind == "earth.stump_grow" and event.cell is not None:
             x, y = view.to_px(event.cell)
@@ -136,14 +155,12 @@ class EarthField(FieldRenderer):
             x, y = view.to_px(event.pos)
             effects.shake(14 * k)
             effects.burst(x, y, (215, 190, 150), n=16, speed=200 * k, size=7 * k, life=0.7)
-            audio.play("earth.crash")
             return True
         if kind == "earth.stomp" and event.pos is not None:
             x, y = view.to_px(event.pos)
             effects.shake(12 * k)
             for i in range(3):
                 effects.ring(x, y, 20 * k, (90 + 40 * i) * k, 0.6 + 0.15 * i, (200, 160, 110), 4)
-            audio.play("earth.stomp")
             return True
         if kind == "earth.hedgehog_fall" and event.pos is not None:
             x, y = view.to_px(event.pos)

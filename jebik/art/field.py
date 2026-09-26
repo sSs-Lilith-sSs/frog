@@ -18,6 +18,7 @@ Hooks (override in the world):
 * :meth:`tile_image` — per-frame variant (e.g. bobbing frames).
 * :meth:`tile_center` — tile centre in field px (default: cell centre).
 * :meth:`obstacle_sprite`, :meth:`draw_exit`, :meth:`update`, :meth:`on_event`.
+* :attr:`event_sounds` / :attr:`tell_sounds` + :meth:`event_sound` — world sounds.
 
 Art style: supersample x3 (``render_ss``) then smoothscale; cache static
 surfaces; never run numpy per frame.
@@ -29,10 +30,10 @@ import math
 import pygame as pg
 
 from .. import config
-from ..game.events import Event
+from ..game.events import BOSS_TELL, Event
 from ..game.grid import Level
 from ..game.tiles import GONE, OBSTACLE, SOLID, WARNING, Tile
-from .common import disc_sprite, render_ss
+from .common import clipped, disc_sprite, render_ss
 from .glow import additive_glow
 
 Color = tuple[int, int, int]
@@ -45,6 +46,10 @@ DIP_TIME = 0.5
 class FieldRenderer:
     fill: Color = (40, 40, 40)          # behind the field when the screen shakes
     grid_color = (255, 255, 255, 55)
+    # world event kind -> (sound, volume[, min gap s]) played by :meth:`event_sound`;
+    # ``tell_sounds``: boss attack name (BOSS_TELL value[1]) -> the same.
+    event_sounds: dict[str, tuple] = {}
+    tell_sounds: dict[str, tuple] = {}
 
     def __init__(self, level: Level, cs: int, rect: pg.Rect):
         self.level = level
@@ -56,6 +61,7 @@ class FieldRenderer:
         self._sprites: dict[tuple[int, str], pg.Surface] = self.level_cache().setdefault("sprites", {})
         self._flash: dict[int, pg.Surface] = {}
         self._static: pg.Surface | None = None
+        self._sound_t: dict[str, float] = {}
 
     # ------------------------------------------------------------ hooks
     def build_static(self) -> pg.Surface:
@@ -106,6 +112,21 @@ class FieldRenderer:
         return False
 
     # ------------------------------------------------------------ helpers
+    def sound(self, audio, name: str, volume: float = 1.0, gap: float = 0.0) -> None:
+        """``audio.play`` with a per-sound minimum gap, so many tiles crumbling
+        in the same moment make one sound, not a pile-up."""
+        if self.t - self._sound_t.get(name, -1e9) >= gap:
+            self._sound_t[name] = self.t
+            audio.play(name, volume)
+
+    def event_sound(self, event: Event, audio) -> None:
+        """Play the sound :attr:`event_sounds` / :attr:`tell_sounds` give ``event``."""
+        spec = self.event_sounds.get(event.kind)
+        if spec is None and event.kind == BOSS_TELL and isinstance(event.value, tuple):
+            spec = self.tell_sounds.get(event.value[-1])
+        if spec is not None:
+            self.sound(audio, *spec)
+
     def level_cache(self) -> dict:
         """A dict kept for this renderer class + level layout + cell size, so
         restarting a level reuses expensive surfaces (static field, sprites)."""
@@ -162,6 +183,7 @@ class FieldRenderer:
                    skip: tuple[int, int] | None = None) -> None:
         tiles = world.tiles
         fx, fy = self.rect.x + off[0], self.rect.y + off[1]
+        frame = self.rect.move(off)
         for cell, tile in sorted(tiles.items(), key=lambda it: (it[0][1], it[0][0])):
             if tile.kind not in (SOLID, OBSTACLE) or cell == skip:
                 continue
@@ -182,7 +204,9 @@ class FieldRenderer:
                 img.set_alpha(alpha)
             cx, cy = self.tile_center(tile, cell)
             cx += tiles.row_offset(cell[1]) * self.cs + jitter
-            surf.blit(img, img.get_rect(center=(round(fx + cx), round(fy + cy))))
+            # a moving row slides (and wraps) through the frame's sides: keep it inside
+            with clipped(surf, frame if cell[1] in tiles.rows else None):
+                surf.blit(img, img.get_rect(center=(round(fx + cx), round(fy + cy))))
 
     def _state_look(self, tile: Tile) -> tuple[float, int, bool, float]:
         """(scale, alpha, flash, x jitter) for the tile's hazard state."""

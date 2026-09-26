@@ -9,7 +9,8 @@ from __future__ import annotations
 import math
 from typing import TYPE_CHECKING
 
-from ...game.enemy import GROUND, Enemy, Telegraph, register_enemy
+from ...game.enemy import AIR, GROUND, Enemy, Telegraph, register_enemy
+from ...game.events import Event
 from ...game.grid import DIRS, Cell, Spawn, manhattan
 from . import config as wc
 
@@ -133,16 +134,20 @@ class Pike(Enemy):
             if self._swim(dt, water, wc.PIKE_SWIM_SPEED):
                 self.state, self.timer = BUBBLES, wc.PIKE_WARN
                 self.water, self.target = water, frog
+                world.emit(Event("water.pike_bubbles", cell=water))
             return
         if self.state == BUBBLES:
             self.timer -= dt
             if self.timer <= 0:
                 self.state, self.timer = LUNGE, wc.PIKE_LUNGE
+                self.layer = AIR                  # leaps out: drawn over the frog it bites
+                world.emit(Event("water.pike_lunge", cell=self.target))
             return
         if self.state == LUNGE:
             self.timer -= dt
             if self.timer <= 0:
                 self.state, self.timer = COOLDOWN, wc.PIKE_COOLDOWN
+                self.layer = GROUND
                 self.target = None
                 self.goal = None
 

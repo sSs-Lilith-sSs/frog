@@ -15,6 +15,19 @@ from .pads import PadSpec, exit_sprite, pad_frames, pad_layout, water_background
 
 class WaterField(FieldRenderer):
     fill = backdrop.POND_BOTTOM
+    # sounds from tools/gen_audio_water.py; volumes balance the files' loudness
+    event_sounds = {
+        "water.pike_bubbles": ("water.pike_bubbles", .85),
+        "water.pike_lunge": ("water.pike_lunge", 1.4),
+        "water.heron_shadow": ("water.heron_whoosh", .95),
+        "water.heron_strike": ("water.heron_strike", 1.3),
+        "water.whale_surface": ("water.whale_surface", 1.0),
+        "water.jet": ("water.jet", 1.3),
+        "water.wave": ("water.wave", 1.2),
+        "water.gulp": ("water.gulp", .85),
+        ev.TILE_WARN: ("water.sink", .95, .3),
+    }
+    tell_sounds = {"surface": ("water.whale_song", .9)}
 
     def __init__(self, level, cs, rect):
         super().__init__(level, cs, rect)
@@ -94,6 +107,12 @@ class WaterField(FieldRenderer):
         effects.ring(x, y, 3 * self.k, 20 * self.k, 1.6, (185, 230, 240), 2, 0.45)
 
     def on_event(self, event: ev.Event, view, effects, audio) -> bool:
+        self.event_sound(event, audio)
+        if event.kind == "water.pike_lunge" and event.cell is not None:   # out of the water
+            x, y = view.to_px(event.cell)
+            effects.burst(x, y, (225, 245, 255), n=10, speed=200 * self.k, size=4 * self.k, life=0.5,
+                          gravity=700 * self.k, up=180 * self.k)
+            return True
         if event.kind == "water.whale_surface":           # the whale breaks the surface
             x, y = view.to_px(event.cell)
             for i in range(3):
@@ -116,4 +135,3 @@ class WaterField(FieldRenderer):
             effects.burst(x, y, (225, 245, 255), n=6, speed=60 * self.k, size=3 * self.k, life=0.6)
             return True
         return False
-

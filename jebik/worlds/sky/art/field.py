@@ -11,6 +11,7 @@ import pygame as pg
 from .... import config, i18n
 from ....art.common import lerp, render_ss, triangle
 from ....art.field import FieldRenderer
+from ....game.events import TILE_WARN
 from ....game.tiles import WARNING, Tile
 from . import paint as P
 
@@ -70,6 +71,24 @@ def cloud_bank(b, x, y, w, h, side, rnd, cols, ss) -> None:
 class SkyField(FieldRenderer):
     fill = (98, 72, 162)
     grid_color = (255, 255, 255, 45)
+    # sounds from tools/gen_audio_sky.py; volumes balance the files' loudness,
+    # a third value = min gap (several clouds popping in at once -> one sound)
+    event_sounds = {
+        "sky.swallow_warn": ("sky.whistle", .87),
+        "sky.swallow_go": ("sky.swallow", 1.17),
+        "sky.hawk_windup": ("sky.hawk", .9),
+        "sky.caw": ("sky.caw", 1.4),
+        "sky.peck": ("sky.peck", 1.3),
+        "sky.crow_eat": ("sky.crow_eat", .9),
+        TILE_WARN: ("sky.melt", .64, .3),
+        "sky.beam": ("sky.beam", 1.06),
+        "sky.multiply": ("sky.multiply", 1.2),
+        "sky.halo_throw": ("sky.halo", 1.17),
+        "sky.halo_caught": ("sky.halo_catch", .98),
+        "sky.rebuild_warn": ("sky.rebuild", 1.1),
+        "sky.cloud_new": ("sky.cloud_pop", 1.08, .25),
+    }
+    tell_sounds = {"beams": ("sky.beam_charge", .95)}
 
     # ------------------------------------------------------------ backdrop
     def build_static(self) -> pg.Surface:
@@ -158,13 +177,13 @@ class SkyField(FieldRenderer):
     # ------------------------------------------------------------ events
     def on_event(self, event, view, effects, audio) -> bool:
         kind, k = event.kind, self.k
+        self.event_sound(event, audio)
         if not kind.startswith("sky."):
             return False
         pos = event.pos if event.pos is not None else event.cell
         x, y = view.to_px(pos) if pos is not None else (self.rect.centerx, self.rect.centery)
         outline = (130, 40, 90)
         if kind == "sky.caw":
-            audio.play("sky.caw")
             effects.popup(i18n.t("sky.caw"), x + 40 * k, y - 40 * k, (255, 255, 255), 30, (200, 60, 90))
             for i in range(3):
                 effects.ring(x, y - 8 * k, 20 * k, (60 + 22 * i) * k, 0.7 + .15 * i, (255, 255, 255), 3, 1.0)
@@ -172,10 +191,7 @@ class SkyField(FieldRenderer):
             effects.burst(x, y, (60, 60, 80), n=8, speed=140 * k, size=3.5 * k, life=0.4)
         elif kind == "sky.peck":
             effects.popup(i18n.t("sky.peck"), x, y - 34 * k, (255, 240, 240), 26, outline)
-        elif kind == "sky.swallow_warn":
-            audio.play("sky.whistle")
         elif kind == "sky.multiply":
-            audio.play("sky.multiply")
             cx, cy = self.rect.centerx, self.rect.y + self.rect.h * .45
             effects.popup(i18n.t("sky.multiply"), cx, cy, (255, 245, 200), 40, outline, life=1.6)
             effects.burst(cx, cy, (255, 250, 210), n=24, speed=520 * k, size=6 * k, life=1.0, kind="star")
@@ -185,9 +201,7 @@ class SkyField(FieldRenderer):
         elif kind == "sky.cloud_new":
             effects.burst(x, y, (255, 250, 246), n=10, speed=160 * k, size=5 * k, life=0.6, kind="star")
         elif kind == "sky.beam":
-            audio.play("sky.beam")
             effects.shake(5)
         elif kind == "sky.halo_caught":
-            audio.play("sky.halo")
             effects.burst(x, y, (255, 225, 110), n=12, speed=220 * k, size=5 * k, life=0.6, kind="star")
         return False

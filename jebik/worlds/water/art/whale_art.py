@@ -12,18 +12,19 @@ from ....game.grid import DIRS
 from .. import whale as wh
 from .characters import draw_whale
 
-MARGIN = 1.2          # extra cells around the 6x3 body (fins, tail, hearts)
+MARGIN = 1.2          # extra cells around the 6x3 body (fins, tail)
 
 
-@lru_cache(maxsize=16)
-def whale_sprite(cs: int, surfaced: bool, hp: int, flip: bool) -> pg.Surface:
-    """The whale over a 6x3-cell rect (head left unless ``flip``)."""
+@lru_cache(maxsize=8)
+def whale_sprite(cs: int, surfaced: bool, flip: bool) -> pg.Surface:
+    """The whale over a 6x3-cell rect (head left unless ``flip``). Its health is
+    shown in the HUD boss pill only (no hearts over the body)."""
     w, h = int(cs * (6 + 2 * MARGIN)), int(cs * (3 + 2 * MARGIN))
     k = cs / 64
 
     def draw(s: pg.Surface, ss: float) -> None:
         rect = (MARGIN * cs * ss, MARGIN * cs * ss, 6 * cs * ss, 3 * cs * ss)
-        draw_whale(s, rect, k * ss, surfaced=surfaced, hp=hp)
+        draw_whale(s, rect, k * ss, surfaced=surfaced, hearts=False)
     img = render_ss((w, h), draw, ss=2)
     return pg.transform.flip(img, True, False) if flip else img
 
@@ -41,7 +42,7 @@ def whale_icon(size: int) -> pg.Surface:
 class WhaleArt(EnemyArt):
     def draw(self, surf: pg.Surface, enemy, off) -> None:
         surfaced = enemy.surfaced
-        img = whale_sprite(self.cs, surfaced, enemy.hp, enemy.facing > 0)
+        img = whale_sprite(self.cs, surfaced, enemy.facing > 0)
         x, y = self.px(enemy.pos, off)
         if surfaced:
             y += math.sin(self.view.t * 2.2) * 2 * self.k

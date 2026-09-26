@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Callable, TypeVar
 
 import pygame as pg
 
-from ..game.enemy import Enemy, Telegraph
+from ..game.enemy import AIR, Enemy, Telegraph
 from .common import disc_sprite, draw_text
 
 if TYPE_CHECKING:
@@ -27,6 +27,11 @@ if TYPE_CHECKING:
 
 
 class EnemyArt:
+    # Drawing (and warnings) of UNDER / GROUND enemies is clipped to the field
+    # frame; AIR ones (birds, a leaping pike, a boss above the field) are not.
+    # Set True / False to force it for a kind.
+    clip: bool | None = None
+
     def __init__(self, view: "GameView"):
         self.view = view
         self.k = view.k
@@ -51,6 +56,10 @@ class EnemyArt:
                        off: tuple[int, int]) -> bool:
         """Custom warning look; return False to use the generic one."""
         return False
+
+    def clipped(self, enemy: Enemy) -> bool:
+        """Whether this enemy's drawing is clipped to the field frame now."""
+        return enemy.layer != AIR if self.clip is None else self.clip
 
     def update(self, dt: float) -> None:
         """Per-frame animation state (optional)."""
