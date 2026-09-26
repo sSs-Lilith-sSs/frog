@@ -20,6 +20,7 @@ class Audio:
         self.duck = 1.0            # temporary music ducking (win/lose stingers)
         self._duck_target = 1.0
         self._duck_hold = 0.0
+        self.intro_channel: pg.mixer.Channel | None = None
         try:
             if not pg.mixer.get_init():
                 pg.mixer.init(frequency=44100, size=-16, channels=2, buffer=512)
@@ -48,6 +49,42 @@ class Audio:
             self.apply_volume()
         except (pg.error, FileNotFoundError):
             self.track = None
+
+    def stop_music(self, fade_ms: int = 0) -> None:
+        if self.enabled:
+            if fade_ms:
+                pg.mixer.music.fadeout(fade_ms)
+            else:
+                pg.mixer.music.stop()
+        self.track = None
+
+    # ------------------------------------------------------------ studio intro
+    def intro_path(self):
+        """The user's ``intro_custom.ogg|wav`` if present, else the generated fanfare."""
+        for name in config.INTRO_CUSTOM:
+            path = config.AUDIO_DIR / name
+            if path.is_file():
+                return path
+        path = config.AUDIO_DIR / config.INTRO_FANFARE
+        return path if path.is_file() else None
+
+    def play_intro(self) -> None:
+        path = self.intro_path()
+        if not self.enabled or path is None:
+            return
+        try:
+            snd = pg.mixer.Sound(str(path))
+        except (pg.error, FileNotFoundError):
+            return
+        self.intro_channel = snd.play()
+        if self.intro_channel is not None:
+            self.intro_channel.set_volume(max(float(self.settings.get("music_volume", .6)),
+                                              float(self.settings.get("sfx_volume", .8))))
+
+    def stop_intro(self, fade_ms: int = 300) -> None:
+        if self.intro_channel is not None:
+            self.intro_channel.fadeout(fade_ms)
+            self.intro_channel = None
 
     def apply_volume(self) -> None:
         if self.enabled:

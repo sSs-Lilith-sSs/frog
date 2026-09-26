@@ -87,7 +87,7 @@ class CutsceneScene(Scene):
             self._draw_credits(surf)
         else:
             self._draw_card(surf)
-        for i in range(len(self.cards)):                    # page dots
+        for i in range(len(self.cards) if len(self.cards) > 1 else 0):     # page dots
             col = (255, 225, 110) if i == self.index else (110, 110, 130)
             pg.draw.circle(surf, col, (W // 2 - (len(self.cards) - 1) * 14 + i * 28, H - 70), 7)
         draw_text(surf, i18n.t("story.continue"), 22, (W // 2, H - 34), (190, 190, 210), bold=False)

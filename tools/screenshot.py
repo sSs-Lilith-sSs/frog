@@ -5,73 +5,36 @@
 
 ``out_dir`` defaults to ./screenshots. ``--lang`` picks the language of all
 screens except the three main-menu shots (UA / EN / RU are always taken).
+``--only <hook>`` runs just the core flow + one hook from ``tools/shots/``.
 
 Runs with SDL's dummy video/audio drivers and a throw-away save directory.
+World packages add their shots in ``tools/shots/<world>.py`` (``shots(d)``).
 """
 from __future__ import annotations
 
-import os
+import importlib.util
 import sys
-import tempfile
 from pathlib import Path
 
-os.environ["SDL_VIDEODRIVER"] = "dummy"
-os.environ["SDL_AUDIODRIVER"] = "dummy"
-os.environ["JEBIK_SAVE_DIR"] = tempfile.mkdtemp(prefix="jebik_shots_")
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
+from shot_driver import ARROW, DT, ROOT, Driver, pg  # noqa: E402  (sets up SDL + save dir)
 
-import pygame as pg  # noqa: E402
-
-from jebik.app import App  # noqa: E402
 from jebik.game import frog as fs  # noqa: E402
 from jebik.game.grid import step  # noqa: E402
 
-DT = 1 / 60
+HOOKS_DIR = Path(__file__).resolve().parent / "shots"
 
 
-class Driver:
-    def __init__(self, out: Path):
-        self.out = out
-        out.mkdir(parents=True, exist_ok=True)
-        self.app = App()
-        self.shots: list[str] = []
-
-    # ------------------------------------------------------------ primitives
-    def run(self, seconds: float, events=()) -> None:
-        events = list(events)
-        for i in range(max(1, int(round(seconds / DT)))):
-            self.app.frame(DT, events if i == 0 else [])
-
-    def key(self, key: int, mod: int = 0, hold: float = 0.0, wait: float = 0.05) -> None:
-        down = pg.event.Event(pg.KEYDOWN, key=key, mod=mod, unicode="", scancode=0)
-        up = pg.event.Event(pg.KEYUP, key=key, mod=mod, unicode="", scancode=0)
-        self.run(max(DT, hold), [down])
-        self.run(wait, [up])
-
-    def type_text(self, text: str) -> None:
-        self.run(0.05, [pg.event.Event(pg.TEXTINPUT, text=text)])
-
-    def settle(self, seconds: float = 0.6) -> None:
-        self.run(seconds)
-
-    def shot(self, name: str) -> None:
-        path = self.out / f"{name}.png"
-        pg.image.save(self.app.screen, str(path))
-        self.shots.append(path.name)
-        print("saved", path)
-
-    @property
-    def top(self):
-        return self.app.scenes.top
-
-    @property
-    def game(self):
-        from jebik.scenes.game_scene import GameScene
-        for s in reversed(self.app.scenes.stack):
-            if isinstance(s, GameScene):
-                return s
-        return None
+def run_hooks(d: Driver, only: str | None = None) -> None:
+    """``tools/shots/<name>.py`` each define ``shots(driver)`` (framework first)."""
+    files = sorted(HOOKS_DIR.glob("*.py"), key=lambda f: (f.stem != "framework", f.stem))
+    for f in files:
+        if f.stem.startswith("_") or (only and f.stem != only):
+            continue
+        spec = importlib.util.spec_from_file_location(f"shots_{f.stem}", f)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        print(f"--- hook {f.stem}")
+        mod.shots(d)
 
 
 def main() -> int:
@@ -79,11 +42,18 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("out", nargs="?", default=str(ROOT / "screenshots"))
     ap.add_argument("--lang", choices=("ua", "en", "ru"), default="ua")
+    ap.add_argument("--only", help="run only this hook from tools/shots/ after the core flow")
     args = ap.parse_args()
     out = Path(args.out).resolve()
-    d = Driver(out)
+    d = Driver(out, splash=True)
     app = d.app
     app.set_lang(args.lang)
+
+    # --- studio splash mid-animation (beams sweeping), then skip with a key
+    d.settle(3.0)
+    d.shot("00_splash")
+    d.key(pg.K_SPACE)
+    d.settle(0.6)
 
     # --- profile: first launch -> type a name (Cyrillic via TEXTINPUT)
     d.settle(0.5)
@@ -204,7 +174,7 @@ def main() -> int:
         if n in w.level.pads:
             f.cell = f.hop_from = f.hop_to = n
             f.state = fs.IDLE
-            key = {0: pg.K_UP, 1: pg.K_RIGHT, 2: pg.K_DOWN, 3: pg.K_LEFT}[dd]
+            key = ARROW[dd]
             break
     d.run(0.6)                                     # tongue cooldown over
     d.key(key, wait=0.3)
@@ -236,7 +206,7 @@ def main() -> int:
             break
     c, dd = water_move
     w.frog.cell = w.frog.hop_from = w.frog.hop_to = c
-    key = {0: pg.K_UP, 1: pg.K_RIGHT, 2: pg.K_DOWN, 3: pg.K_LEFT}[dd]
+    key = ARROW[dd]
     d.key(key, wait=0.2)
     d.settle(2.6)
     d.shot("15_lose")
@@ -253,6 +223,10 @@ def main() -> int:
     d.run(0.2, [pg.event.Event(pg.FINGERUP, finger_id=1, touch_id=0, x=fx, y=fy, dx=0.0, dy=0.0)])
     d.shot("16_gameplay_touch")
     app.settings["touch"] = "auto"
+
+    go_menu(app)
+    d.settle(0.5)
+    run_hooks(d, args.only)
 
     print(f"{len(d.shots)} screenshots in {out}")
     pg.quit()

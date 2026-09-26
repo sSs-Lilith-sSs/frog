@@ -14,7 +14,9 @@ from .ui import touch, widgets
 
 
 class App:
-    def __init__(self) -> None:
+    def __init__(self, splash: bool | None = None) -> None:
+        """``splash``: show the studio splash first (default: yes, unless the
+        ``JEBIK_NO_SPLASH`` environment variable is set)."""
         pg.mixer.pre_init(44100, -16, 2, 512)
         pg.init()
         pg.display.set_caption("жэбик")
@@ -36,10 +38,16 @@ class App:
         from .scenes.profile import ProfileScene
         self.backdrop = MenuBackdrop()
         self.scenes = SceneManager(self)
-        self.scenes.reset(ProfileScene(self), fade=False)
+        if splash is None:
+            splash = not os.environ.get("JEBIK_NO_SPLASH")
         if self.settings.get("fullscreen"):
             self.set_fullscreen(True)
-        self.audio.play_music()
+        if splash:
+            from .scenes.splash import SplashScene
+            self.scenes.reset(SplashScene(self, lambda: ProfileScene(self)), fade=False)
+        else:
+            self.scenes.reset(ProfileScene(self), fade=False)
+            self.audio.play_music()
 
     # ------------------------------------------------------------ services
     def _set_icon(self) -> None:

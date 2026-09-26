@@ -22,10 +22,10 @@ def test_roundtrip(tmp_path):
     assert back.current == "Кыця"
     assert back.settings["lang"] == "en" and back.settings["music_track"] == "C"
     prog = back.profile.diff("ezzz")
-    assert prog.is_unlocked("1-2")
     rec = prog.record("1-1")
     assert rec.completed and rec.stars == 3 and rec.best_score == 1600
     assert rec.best_time == 42.5
+    assert [(r.score, r.time, r.stars) for r in rec.runs] == [(1600, 42.5, 3)]
 
 
 def test_best_values_are_kept(tmp_path):
@@ -67,7 +67,6 @@ def test_wrong_types_are_sanitised(tmp_path):
     assert data.current is None
     rec = data.profiles[0].diff("ezzz").record("1-1")
     assert rec.stars == 3 and rec.best_score == 0
-    assert data.profiles[0].diff("ezzz").is_unlocked("1-1")
 
 
 def test_profiles_unique_and_delete(tmp_path):
@@ -88,9 +87,10 @@ def test_env_save_dir(monkeypatch, tmp_path):
 
 
 def test_next_level_ids():
-    assert save.next_level_id("1-1") == "1-2"
-    assert save.next_level_id("1-4") == "2-1"
-    assert save.next_level_id("3-4") is None
+    from jebik.worlds import catalog
+    assert catalog.next_level("1-1", playable_only=False) == "1-2"
+    assert catalog.next_level("1-4", playable_only=False) == "2-1"
+    assert catalog.next_level("3-4", playable_only=False) is None
 
 
 def test_i18n_every_key_has_all_languages():

@@ -39,8 +39,11 @@ class SplashScene(Scene):
         self.sky = art.sky()
         self.beam = art.beam()
         self.flare = art.flare()
-        self.city, self.lights = art.city()
+        self.city, self.lights, self.city_box = art.city()
         self.logo, self.logo_rect = art.logo()
+        self.floor = art.floor()
+        self.vignette = art.vignette()
+        self.ground = art.ground_y()
         self.black = pg.Surface((W, H))
         self.done = False
         self.rng = random.Random(3)
@@ -85,23 +88,27 @@ class SplashScene(Scene):
     def draw(self, surf: pg.Surface) -> None:
         surf.blit(self.sky, (0, 0))
         self._draw_beams(surf, self.zoom(0.35))
+        # city layer: rendered at CITY_ZOOM about the screen centre
         zc = self.zoom(0.6)
         f = zc / art.CITY_ZOOM
-        city = pg.transform.smoothscale(self.city, (round(self.city.get_width() * f),
-                                                    round(self.city.get_height() * f)))
-        surf.blit(city, city.get_rect(center=(W / 2, H / 2)))
+        box = self.city_box
+        ox = W / 2 + (box.x - W * art.CITY_ZOOM / 2) * f
+        oy = H / 2 + (box.y - H * art.CITY_ZOOM / 2) * f
+        city = pg.transform.smoothscale(self.city, (round(box.w * f), round(box.h * f)))
+        surf.blit(city, (round(ox), round(oy)))
         for i, (lx, ly) in enumerate(self.lights):          # blinking red spire lights
             if (self.time * 1.3 + i * 0.37) % 1.0 < 0.5:
-                x = W / 2 + (lx - self.city.get_width() / 2) * f
-                y = H / 2 + (ly - self.city.get_height() / 2) * f
-                pg.draw.circle(surf, (255, 70, 60), (round(x), round(y)), 3)
+                pg.draw.circle(surf, (255, 70, 60), (round(ox + lx * f), round(oy + ly * f)), 3)
+        # monument layer: rect in screen coords at LOGO_ZOOM about the centre
         zl = self.zoom(1.0)
+        gy = H / 2 + (self.ground - H / 2) * zl
+        surf.blit(self.floor, (0, round(gy) - 2))
         f = zl / art.LOGO_ZOOM
         r = self.logo_rect
         logo = self.logo if abs(f - 1) < 1e-3 else pg.transform.smoothscale(
             self.logo, (round(r.w * f), round(r.h * f)))
-        full_w, full_h = W * art.LOGO_ZOOM, H * art.LOGO_ZOOM
-        surf.blit(logo, (round(W / 2 + (r.x - full_w / 2) * f), round(H / 2 + (r.y - full_h / 2) * f)))
+        surf.blit(logo, (round(W / 2 + (r.x - W / 2) * f), round(H / 2 + (r.y - H / 2) * f)))
+        surf.blit(self.vignette, (0, 0))
         self._draw_fade(surf)
 
     def _draw_beams(self, surf: pg.Surface, z: float) -> None:

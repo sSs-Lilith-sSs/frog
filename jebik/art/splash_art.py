@@ -58,29 +58,37 @@ def sky() -> pg.Surface:
         sx, sy = rnd.randint(0, W), int(rnd.random() ** 1.8 * H * .45)
         c = int(150 + 105 * rnd.random() * (1 - sy / (H * .45)))
         s.set_at((sx, sy), (c, c, min(255, c + 20)))
-    clouds = pg.Surface((W // 8, H // 8), pg.SRCALPHA)                    # soft cloud bands
-    for _ in range(26):
-        cy = rnd.uniform(.38, .7) * H / 8
-        cx, w = rnd.uniform(-20, W / 8 + 20), rnd.uniform(30, 90)
-        lit = (cy * 8 / H - .38) / .32
-        col = lerp((50, 30, 80), (230, 110, 90), lit ** 1.5)
-        pg.draw.ellipse(clouds, (*col, 150), (cx - w / 2, cy - 2, w, rnd.uniform(3, 7)))
+    cw, ch = W // 4, H // 4                                               # soft cloud bands
+    cy_, cx_ = np.mgrid[0:ch, 0:cw].astype(np.float32)
+    alpha = np.zeros((ch, cw), np.float32)
+    tint = np.zeros((ch, cw), np.float32)
+    for _ in range(22):
+        y0 = rnd.uniform(.4, .7) * ch
+        x0, sx, sy = rnd.uniform(-40, cw + 40), rnd.uniform(40, 130), rnd.uniform(2.5, 6)
+        g = np.exp(-((cx_ - x0) / sx) ** 2 - ((cy_ - y0) / sy) ** 2) * rnd.uniform(.35, .7)
+        alpha = np.maximum(alpha, g)
+        tint = np.maximum(tint, g * np.clip((y0 / ch - .4) / .3, 0, 1))
+    lo, hi = np.array((46, 26, 74), np.float32), np.array((236, 120, 96), np.float32)
+    rgb = lo + (hi - lo) * np.clip(tint / np.maximum(alpha, 1e-3), 0, 1)[..., None] ** 1.3
+    clouds = pg.Surface((cw, ch), pg.SRCALPHA)
+    pg.surfarray.blit_array(clouds, rgb.transpose(1, 0, 2).astype(np.uint8))
+    pg.surfarray.pixels_alpha(clouds)[...] = (np.clip(alpha, 0, 1) * 200).T.astype(np.uint8)
     s.blit(pg.transform.smoothscale(clouds, (W, H)), (0, 0))
     return s
 
 
 # ---------------------------------------------------------------- beam
 @lru_cache(maxsize=1)
-def beam(length: int = 1500, width: int = 300) -> pg.Surface:
+def beam(length: int = 1500, width: int = 340) -> pg.Surface:
     """Searchlight cone, source at the bottom centre, pointing up."""
     v = np.linspace(1, 0, length, dtype=np.float32)[None, :]              # 1 at the source
     x = np.linspace(-1, 1, width, dtype=np.float32)[:, None]
     half = 0.05 + 0.95 * (1 - v)                                           # cone opening
-    core = np.exp(-(x / (half * .55)) ** 2)
-    along = (0.25 + 0.75 * v ** 1.6) * np.clip((1 - v) * 40, 0, 1)
+    core = np.exp(-(x / (half * .5)) ** 2) + 0.35 * np.exp(-(x / (half * .12)) ** 2)
+    along = (0.3 + 0.7 * v ** 1.4) * np.clip((1 - v) * 40, 0, 1)
     inten = core * along
-    col = np.array((170, 190, 255), np.float32)
-    rgb = inten[..., None] * col[None, None, :] * 0.9
+    col = np.array((185, 205, 255), np.float32)
+    rgb = inten[..., None] * col[None, None, :] * 1.05
     s = pg.Surface((width, length))
     pg.surfarray.blit_array(s, np.clip(rgb, 0, 255).astype(np.uint8))
     return s
@@ -113,16 +121,20 @@ def _tower(s: pg.Surface, x: float, w: float, top: float, k: float, rnd: random.
     cx = x + w / 2
     pg.draw.polygon(s, col, [(cx - 4 * k, cur_top + 4), (cx + 4 * k, cur_top + 4), (cx, tip)])
     lights.append((cx, tip))
-    for _ in range(int(w * (base - top) / 900 / k)):
-        wx = x + rnd.uniform(.12, .88) * w
-        wy = rnd.uniform(top + (base - top) * .25, base - 10 * k)
-        pg.draw.rect(s, (255, 205, 120) if rnd.random() < .8 else (180, 210, 255),
-                     (wx, wy, 3 * k, 4 * k))
+    gx, gy = 11 * k, 15 * k                                 # lit windows on a grid
+    for row in range(int((base - top) * .75 / gy)):
+        for col in range(int(w * .8 / gx)):
+            if rnd.random() < .07:
+                wx = x + w * .1 + col * gx
+                wy = top + (base - top) * .25 + row * gy
+                pg.draw.rect(s, (255, 205, 120) if rnd.random() < .8 else (180, 210, 255),
+                             (wx, wy, 3 * k, 5 * k))
 
 
 @lru_cache(maxsize=1)
-def city() -> tuple[pg.Surface, list[tuple[float, float]]]:
-    """Dark skyline at both sides (rendered at CITY_ZOOM), plus spire light spots."""
+def city() -> tuple[pg.Surface, list[tuple[float, float]], pg.Rect]:
+    """Dark skyline at both sides rendered at CITY_ZOOM (cropped to its content),
+    spire light spots (crop coords) and the crop rect in the zoomed layer."""
     k = CITY_ZOOM
     s = pg.Surface((int(W * k), int(H * k)), pg.SRCALPHA)
     rnd = random.Random(7)
@@ -136,8 +148,33 @@ def city() -> tuple[pg.Surface, list[tuple[float, float]]]:
                 px = x if side == 0 else W - x - w
                 _tower(s, px * k, w * k, top * k, k, rnd, col, lights if layer else [])
                 x += w * rnd.uniform(.75, 1.05)
-    pg.draw.rect(s, (10, 8, 18), (0, int(HORIZON * k + 90 * k), s.get_width(), s.get_height()))
-    return s, lights
+    box = s.get_bounding_rect()
+    crop = s.subsurface(box).copy()
+    return crop, [(x - box.x, y - box.y) for x, y in lights], box
+
+
+@lru_cache(maxsize=1)
+def floor() -> pg.Surface:
+    """Ground in front of the city: dark gradient with a warm glow under the monument."""
+    fh = 700
+    y = np.linspace(0, 1, fh, dtype=np.float32)[None, :]
+    x = np.linspace(-1, 1, W, dtype=np.float32)[:, None]
+    base = np.array((26, 16, 36), np.float32) * (1 - y[..., None] * .85)
+    glow = np.exp(-(x / .3) ** 2 - (y / .06) ** 2)[..., None] * np.array((80, 50, 18), np.float32)
+    s = pg.Surface((W, fh))
+    pg.surfarray.blit_array(s, np.clip(base + glow, 0, 255).astype(np.uint8))
+    return s
+
+
+@lru_cache(maxsize=1)
+def vignette() -> pg.Surface:
+    yy, xx = np.mgrid[0:H // 4, 0:W // 4].astype(np.float32)
+    r = np.hypot((xx - W / 8) / (W / 8), (yy - H / 8) / (H / 8))
+    a = (np.clip((r - .75) / .7, 0, 1) ** 1.5 * 210).T
+    s = pg.Surface((W // 4, H // 4), pg.SRCALPHA)
+    s.fill((0, 0, 0, 0))
+    pg.surfarray.pixels_alpha(s)[...] = a.astype(np.uint8)
+    return pg.transform.smoothscale(s, (W, H))
 
 
 # ---------------------------------------------------------------- logo
@@ -157,16 +194,24 @@ def _line_layout() -> list[tuple[str, float, float, float]]:
 
 
 def _pedestal(bottom_text: float) -> list[tuple[float, float, float, float]]:
-    """Base boxes (x0, y0, x1, y1) at zoom 1: grooved plinth + three steps."""
-    boxes, y = [], bottom_text + 18
-    half = 330
-    boxes.append((W / 2 - half, y, W / 2 + half, y + 64))
-    y += 64
-    for i in range(3):
-        half += 46
-        boxes.append((W / 2 - half, y, W / 2 + half, y + 26))
-        y += 26
+    """Base boxes (x0, y0, x1, y1) at zoom 1: cornice, ribbed plinth, three steps."""
+    y = bottom_text + 16
+    boxes = [(W / 2 - 350, y, W / 2 + 350, y + 18)]           # cornice
+    y += 18
+    boxes.append((W / 2 - 322, y, W / 2 + 322, y + 92))       # plinth with pillars
+    y += 92
+    half = 322
+    for _ in range(3):                                         # steps
+        half += 52
+        boxes.append((W / 2 - half, y, W / 2 + half, y + 24))
+        y += 24
     return boxes
+
+
+def ground_y() -> float:
+    """Screen y (zoom 1) where the monument stands on the ground."""
+    glyphs = _line_layout()
+    return _pedestal(max(y + h for _, _, y, h in glyphs))[-1][3]
 
 
 @lru_cache(maxsize=1)
@@ -233,6 +278,32 @@ def _extrude(ml: np.ndarray, mb: np.ndarray, boxes, glyphs, z: float, crop: pg.R
         band = min(bands - 1, int(d / depth * bands))
         out.blit(layers[band], (round(EXTRUDE[0] * d), round(EXTRUDE[1] * d)))
     out.blit(_front(ml, mb, mask, boxes, glyphs, z, crop), (0, 0))
+    ground = int(H / 2 + (boxes[-1][3] - H / 2) * z) - crop.y       # it stands on the ground
+    if 0 <= ground < h:
+        pg.surfarray.pixels_alpha(out)[:, ground:] = 0
+    return _keystone(out, ground)
+
+
+def _keystone(surf: pg.Surface, ground: int, top_squeeze: float = .09, right_drop: float = .05,
+              strip: int = 2) -> pg.Surface:
+    """Fake a low camera on the left with thin strips (cheap, no numpy):
+    rows get narrower toward the top, columns shorter toward the right. The
+    ground line stays straight."""
+    w, h = surf.get_size()
+    gl = max(1, min(h, ground))
+    rows = pg.Surface((w, h), pg.SRCALPHA)
+    for y in range(0, gl, strip):                    # 1) top recedes: narrower rows
+        k = 1 - top_squeeze * (1 - y / gl)
+        sw = max(1, round(w * k))
+        piece = pg.transform.smoothscale(surf.subsurface((0, y, w, min(strip, gl - y))), (sw, min(strip, gl - y)))
+        rows.blit(piece, ((w - sw) // 2, y))
+    out = pg.Surface((w, h), pg.SRCALPHA)
+    for x in range(0, w, strip):                     # 2) right side further: shorter columns
+        k = 1 - right_drop * (x / w)
+        sh = max(1, round(gl * k))
+        cw = min(strip, w - x)
+        piece = pg.transform.smoothscale(rows.subsurface((x, 0, cw, gl)), (cw, sh))
+        out.blit(piece, (x, gl - sh))
     return out
 
 
@@ -240,23 +311,32 @@ def _front(ml, mb, mask, boxes, glyphs, z: float, crop: pg.Rect) -> pg.Surface:
     w, h = mask.shape
     xs = np.arange(w, dtype=np.float32)[:, None] + crop.x          # zoomed screen coords
     ys = np.arange(h, dtype=np.float32)[None, :] + crop.y
-    # gold: per text line, bright at the top of the letters -> deep amber at the bottom
+    # gold: per glyph box, bright at the top of the letters -> deep amber at the bottom
     t = np.zeros((w, h), np.float32)
-    for _, _, gy, gh in glyphs:
-        y0 = H / 2 + (gy - H / 2) * z
-        y1 = H / 2 + (gy + gh - H / 2) * z
-        sel = (ys >= y0 - 2) & (ys <= y1 + 2)
-        t = np.where(sel, np.clip((ys - y0) / (y1 - y0), 0, 1), t)
+    for ch, gx, gy, gh in glyphs:
+        x0 = int(W / 2 + (gx - W / 2) * z) - crop.x - 4
+        x1 = int(W / 2 + (gx + glyph(ch)[1] * gh - W / 2) * z) - crop.x + 4
+        y0 = H / 2 + (gy - H / 2) * z - crop.y
+        y1 = H / 2 + (gy + gh - H / 2) * z - crop.y
+        ry = np.arange(max(0, int(y0) - 2), min(h, int(y1) + 3))
+        t[max(0, x0):max(0, x1), ry[0]:ry[-1] + 1] = np.clip((ry - y0) / (y1 - y0), 0, 1)[None, :]
     top, mid, bot = (np.array(c, np.float32) for c in ((255, 244, 178), (250, 196, 72), (176, 104, 22)))
     t3 = t[..., None]
     gold = np.where(t3 < .5, top + (mid - top) * (t3 / .5), mid + (bot - mid) * ((t3 - .5) / .5))
-    # bronze base: slightly darker gold, grooves on the plinth, lit step edges
-    by = np.clip((ys - (H / 2 + (boxes[0][1] - H / 2) * z)) / (200 * z), 0, 1)[..., None]
-    bronze = np.array((226, 166, 70), np.float32) * (1 - 0.35 * by) + np.zeros_like(xs)[..., None]
-    x0 = W / 2 + (boxes[0][0] - W / 2) * z
-    groove = (np.abs(((xs - x0) / (22 * z)) % 2 - 1) < 0.18) & \
-             (ys > H / 2 + (boxes[0][1] + 8 - H / 2) * z) & (ys < H / 2 + (boxes[0][3] - 8 - H / 2) * z)
-    bronze = np.where(groove[..., None], bronze * 0.55, bronze)
+    # bronze base: pillars on the plinth (lit faces, dark recesses), lit step edges
+    def zy(v: float) -> float:
+        return H / 2 + (v - H / 2) * z
+    by = np.clip((ys - zy(boxes[0][1])) / (220 * z), 0, 1)
+    shade = np.ones((w, h), np.float32) * (1.05 - 0.4 * by)
+    px0, py0, _, py1 = boxes[1]
+    u = ((xs - (W / 2 + (px0 - W / 2) * z)) / (64 * z)) % 1.0
+    plinth = (ys > zy(py0) + 5 * z) & (ys < zy(py1) - 3 * z)
+    pillar = np.where(u < .05, 1.3, np.where(u < .72, 1.18 - 0.45 * (u / .72),         # round-ish column
+                                             np.where(u < .78, .32, .5)))
+    shade = np.where(plinth, shade * pillar, shade)
+    for bx0, by0, bx1, by1 in boxes:                           # bright top edge of every slab
+        shade = np.where((ys >= zy(by0)) & (ys < zy(by0) + 3.5 * z), shade * 1.3, shade)
+    bronze = np.array((232, 170, 72), np.float32) * shade[..., None]
     rgb = np.where((mb > ml)[..., None], bronze, gold)
     # bevel: light from the upper left on the inner edges, dark lower-right rims
     nx, ny = _normals(mask, 5)

@@ -2,7 +2,8 @@
 """Synthesise the game's music and sound effects into jebik/assets/audio/.
 
 Port of the approved ``music.py`` sketch: three music tracks (A 8-bit,
-B cartoon ukulele+marimba, C swamp polka) and the SFX set. Music is written as
+B cartoon ukulele+marimba, C swamp polka), the SFX set and the original
+studio-splash fanfare (``intro_fanfare.wav``). Music is written as
 a seamless loop: notes ringing past the end are folded back onto the start
 and there is no fade-out.
 
@@ -273,6 +274,93 @@ def make_sfx() -> dict[str, np.ndarray]:
     return s
 
 
+# ---------------------------------------------------------------- studio fanfare
+# An ORIGINAL pompous fanfare for the «21th MANGO CAT» splash (not the Fox
+# melody): snare + timpani roll crescendo, then a C-major brass fanfare with
+# timpani hits and a cymbal on the final chord. ~6.8 s.
+FANFARE_LEN = 6.9
+MELODY = [(1.60, .18, 67), (1.80, .10, 67), (1.92, .55, 72), (2.47, .18, 71), (2.67, .18, 72),
+          (2.87, .66, 76), (3.55, .18, 74), (3.75, .18, 72), (3.95, .34, 69), (4.30, .28, 71),
+          (4.60, 2.00, 72)]
+CHORDS = [(1.60, 1.27, (48, 52, 55, 60)), (2.87, .68, (45, 52, 57, 60)), (3.55, .75, (41, 53, 57, 60)),
+          (4.30, .30, (43, 55, 59, 62)), (4.60, 2.10, (36, 48, 55, 60, 64))]
+TIMPANI = [(1.60, 36, 1.0), (1.92, 43, .7), (2.87, 33, .8), (3.55, 29, .8), (4.30, 31, .8),
+           (4.45, 31, .8), (4.60, 36, 1.1)]
+
+
+def brass(freq: float, dur: float, vol: float = 1.0) -> np.ndarray:
+    """Additive brass: brightness opens on the attack, gentle late vibrato."""
+    n = int((dur + .25) * SR)
+    t = np.arange(n) / SR
+    amp = np.minimum(1, t / .045) * np.where(t < dur, 1.0, np.exp(-(t - dur) * 14))
+    amp *= 1 - .12 * np.minimum(1, t / max(dur, .01))
+    bright = .35 + .5 * np.minimum(1, t / .09) - .15 * np.minimum(1, t / 1.5)
+    vib = np.sin(2 * np.pi * 5.2 * t) * .004 * np.minimum(1, np.maximum(0, t - .25) * 3)
+    out = np.zeros(n)
+    for det in (-.0025, 0, .003):
+        ph = 2 * np.pi * freq * (1 + det) * (t + np.cumsum(vib) / SR)
+        for k in range(1, 13):
+            if freq * k > SR / 2.2:
+                break
+            out += np.sin(k * ph) * (bright ** (k - 1)) / k
+    return out * amp * vol / 3
+
+
+def timpani(m: float, vol: float, dur: float = 1.6) -> np.ndarray:
+    t = tt(dur)
+    fr = f(m) * (1 + .06 * np.exp(-t * 20))
+    body = np.sin(2 * np.pi * np.cumsum(fr) / SR) + .4 * np.sin(2 * np.pi * np.cumsum(fr * 1.5) / SR) * np.exp(-t * 6)
+    thump = lowpass(rng.uniform(-1, 1, len(t)), 12) * np.exp(-t * 30)
+    return (body * np.exp(-t * 2.6) + thump * .8) * vol
+
+
+def cymbal(dur: float = 2.5) -> np.ndarray:
+    noise = rng.uniform(-1, 1, int(dur * SR))
+    hi = noise - lowpass(noise, 4)
+    return hi * np.exp(-tt(dur) * 1.6) * np.minimum(1, tt(dur) * 300)
+
+
+def intro_fanfare() -> np.ndarray:
+    out = np.zeros(int(FANFARE_LEN * SR))
+
+    def add(start: float, w: np.ndarray, vol: float) -> None:
+        i = int(start * SR)
+        n = min(len(w), len(out) - i)
+        out[i:i + n] += w[:n] * vol
+    # snare roll + timpani rumble crescendo (0 .. 1.6 s)
+    k = 0.0
+    while k < 1.58:
+        grow = (k / 1.58) ** 1.7
+        add(k, snare(int(.06 * SR)), .06 + .5 * grow)
+        k += 1 / 26
+    k = 0.0
+    while k < 1.58:
+        add(k, timpani(31, 1.0, .25), .05 + .35 * (k / 1.58) ** 2)
+        k += 1 / 14
+    for start, dur, notes_ in CHORDS:                   # brass section
+        for m in notes_:
+            add(start, brass(f(m), dur), .22)
+    for start, dur, m in MELODY:                        # trumpets (two octaves)
+        add(start, brass(f(m), dur, 1.0), .5)
+        add(start, brass(f(m + 12), dur, .6), .18)
+    for start, m, vol in TIMPANI:
+        add(start, timpani(m, vol), .75)
+    add(1.60, cymbal(1.6), .25)
+    add(4.60, cymbal(2.3), .4)
+    k = 5.2
+    while k < 6.4:                                      # final timpani roll
+        add(k, timpani(36, 1.0, .3), .12 + .15 * (k - 5.2))
+        k += 1 / 16
+    add(6.4, timpani(24, 1.2, .5), .9)
+    hall = out.copy()                                   # a little hall reverb
+    for delay, g in ((.043, .35), (.071, .28), (.113, .22), (.167, .16), (.241, .1)):
+        d = int(delay * SR)
+        hall[d:] += out[:-d] * g
+    fade_n = int(.35 * SR)
+    hall[-fade_n:] *= np.linspace(1, 0, fade_n)
+    return hall
+
+
 def main() -> int:
     OUT.mkdir(parents=True, exist_ok=True)
     for name, fn in (("music_a.wav", music_a), ("music_b.wav", music_b), ("music_c.wav", music_c)):
@@ -281,6 +369,8 @@ def main() -> int:
     for name, buf in make_sfx().items():
         write_wav(OUT / f"sfx_{name}.wav", fade(buf, 4), peak=.8)
         print("wrote", f"sfx_{name}.wav")
+    write_wav(OUT / "intro_fanfare.wav", fade(intro_fanfare(), 6), peak=.9)   # last: keeps rng order
+    print("wrote intro_fanfare.wav")
     return 0
 
 

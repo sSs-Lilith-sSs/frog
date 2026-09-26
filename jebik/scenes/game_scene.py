@@ -10,7 +10,7 @@ import pygame as pg
 from .. import config, i18n, progression
 from ..art.common import heart_sprite
 from ..game import events as ev
-from ..game.grid import load_level
+from ..game.grid import Level, load_level
 from ..game.rules import rules_for
 from ..game.world import LOST, WON, World
 from ..worlds import world_by_id
@@ -27,10 +27,11 @@ TONGUE_CHORD = 0.06         # Space waits this long for an arrow (Space + arrow 
 
 
 class GameScene(Scene):
-    def __init__(self, app, level_id: str, seed: int | None = None):
+    def __init__(self, app, level_id: str, seed: int | None = None, level: Level | None = None):
+        """``level`` overrides loading ``level_id`` (tests, screenshot mocks)."""
         super().__init__(app)
         self.level_id = level_id
-        self.level = load_level(level_id)
+        self.level = level or load_level(level_id)
         self.seed = seed
         self.world = World(self.level, rules_for(app.difficulty, self.level), seed=seed)
         self.theme = world_by_id(self.level.world).theme
@@ -59,7 +60,7 @@ class GameScene(Scene):
         self.app.audio.play_music()
 
     def restart(self) -> None:
-        self.app.scenes.replace(GameScene(self.app, self.level_id))
+        self.app.scenes.replace(GameScene(self.app, self.level_id, level=self.level))
 
     @property
     def auto_restart(self) -> bool:
