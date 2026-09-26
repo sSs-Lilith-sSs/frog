@@ -9,6 +9,7 @@ import pygame as pg
 
 from . import config, i18n, save
 from .audio import Audio
+from .paths import resource_path
 from .game.rules import EZZZ
 from .ui import touch, widgets
 
@@ -52,12 +53,9 @@ class App:
     # ------------------------------------------------------------ services
     def _set_icon(self) -> None:
         try:
-            from .art.chars import frog_front_sprite
-            icon = pg.Surface((64, 64), pg.SRCALPHA)
-            spr = frog_front_sprite(1.0)
-            icon.blit(spr, spr.get_rect(center=(32, 34)))
+            icon = pg.image.load(str(resource_path("assets", "icon.png")))
             pg.display.set_icon(icon)
-        except pg.error:
+        except (pg.error, OSError):
             pass
 
     @property
