@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pygame as pg
 
-from .. import config, i18n
+from .. import config, i18n, paths
 from ..ui.widgets import Choice, Slider, Toggle
 from .common import W, MenuScene, draw_hint, draw_panel
 
@@ -32,16 +32,17 @@ class SettingsScene(MenuScene):
                             ("B", lambda: "B · " + i18n.t("settings.music_b")),
                             ("C", lambda: "C · " + i18n.t("settings.music_c"))],
                            lambda: s["music_track"], self._set_track, control_w=820))
-        rows.append(Toggle(row(3), lambda: i18n.t("settings.fullscreen"),
-                           lambda: bool(s["fullscreen"]), self._set_fullscreen,
-                           lambda: i18n.t("settings.on"), lambda: i18n.t("settings.off")))
-        rows.append(Toggle(row(4), lambda: i18n.t("settings.grid"),
+        if not paths.is_web():          # the browser build has no window to toggle
+            rows.append(Toggle(row(len(rows)), lambda: i18n.t("settings.fullscreen"),
+                               lambda: bool(s["fullscreen"]), self._set_fullscreen,
+                               lambda: i18n.t("settings.on"), lambda: i18n.t("settings.off")))
+        rows.append(Toggle(row(len(rows)), lambda: i18n.t("settings.grid"),
                            lambda: bool(s["show_grid"]), self._set_grid,
                            lambda: i18n.t("settings.on"), lambda: i18n.t("settings.off")))
-        rows.append(Choice(row(5), lambda: i18n.t("settings.touch"),
+        rows.append(Choice(row(len(rows)), lambda: i18n.t("settings.touch"),
                            [(m, lambda m=m: i18n.t(f"settings.touch_{m}")) for m in config.TOUCH_MODES],
                            lambda: s.get("touch", "auto"), self._set_touch, control_w=520))
-        rows.append(Choice(row(6), lambda: i18n.t("settings.language"),
+        rows.append(Choice(row(len(rows)), lambda: i18n.t("settings.language"),
                            [(c, i18n.LANG_LABELS[c]) for c in i18n.LANGS],
                            lambda: s["lang"], self.app.set_lang, control_w=420))
         self.panel = pg.Rect(x - 30, y - 30, ROW_W + 60, len(rows) * ROW_STEP + 44)

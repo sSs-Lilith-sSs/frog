@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pygame as pg
 
-from .. import config, i18n
+from .. import config, i18n, paths
 from ..art.chars import frog_front_sprite
 from ..art.common import draw_text, font, rounded_panel, triangle_sprite
 from ..ui.widgets import Button
@@ -49,13 +49,15 @@ class MainMenuScene(MenuScene):
     def _build(self) -> None:
         items = [("menu.play", self._play), ("menu.levels", self._levels),
                  ("menu.records", self._records), ("menu.settings", self._settings),
-                 ("menu.howto", self._howto), ("menu.quit", self.app.quit)]
+                 ("menu.howto", self._howto)]
+        if not paths.is_web():              # a browser tab is closed, not quit
+            items.append(("menu.quit", self.app.quit))
         buttons = []
         for i, (key, fn) in enumerate(items):
             r = pg.Rect(0, 0, 480, 86)
             r.center = (620, 470 + i * 100)
             buttons.append(Button(r, lambda k=key: i18n.t(k), fn, size=40))
-        self.quit_button = buttons[-1]
+        self.quit_button = None if paths.is_web() else buttons[-1]
         widgets = buttons + [ProfilePill(self.app, self._profiles)] + lang_pills(self.app)
         self.focus.set_widgets(widgets, keep=False)
 
@@ -85,6 +87,8 @@ class MainMenuScene(MenuScene):
         self.app.scenes.push(ProfileScene(self.app, from_menu=True))
 
     def back(self) -> None:
+        if self.quit_button is None:
+            return
         if self.focus.focused is self.quit_button:
             self.app.quit()
         else:

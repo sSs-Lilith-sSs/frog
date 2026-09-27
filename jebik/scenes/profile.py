@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pygame as pg
 
-from .. import config, i18n, progression
+from .. import config, i18n, paths, progression
 from ..art.chars import frog_front_sprite
 from ..art.common import draw_text, fit_size, star_sprite
 from ..game.rules import EZZZ
@@ -38,8 +38,9 @@ class ProfileScene(MenuScene):
         self.mode = "list"          # list | create | confirm
         self.error = ""
         self.to_delete: str | None = None
+        self._asking = False
         self.input = TextInput((0, 0, ROW_W, 90), lambda: i18n.t("profile.placeholder"),
-                               MAX_NAME_LEN, self._create)
+                               MAX_NAME_LEN, self._create, lambda: i18n.t("profile.enter_name"))
         self._build()
 
     # ------------------------------------------------------------ layout
@@ -130,6 +131,13 @@ class ProfileScene(MenuScene):
 
     def _create(self, text: str) -> None:
         name = text.strip()
+        if not name and paths.is_web() and not self._asking:
+            self._asking = True             # browser: nothing typed yet -> ask with a dialog
+            try:
+                self.input.ask_web()
+            finally:
+                self._asking = False
+            return
         if not name:
             self.error = i18n.t("profile.err_empty")
         elif self.app.save.find(name):

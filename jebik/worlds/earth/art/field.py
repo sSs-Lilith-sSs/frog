@@ -108,14 +108,15 @@ class EarthField(FieldRenderer):
         img.blit(st, st.get_rect(center=(round(c), round(c))))
         return img
 
-    def draw_tiles(self, surf: pg.Surface, world, off, skip=None) -> None:
+    def tile_blits(self, world, off, skip=None):
         cs = self.cs
         fx, fy = self.rect.x + off[0], self.rect.y + off[1]
-        for cell, tile in world.tiles.items():      # temporary / crumbled holes: dirt pits
+        pits = []
+        for cell, tile in world.tiles.items():      # temporary / crumbled holes: dirt pits first
             if tile.kind == SOLID and not tile.standable:
                 patch = pit_patch(cs, (cell[0] * 7 + cell[1] * 3) % 4, cell[1], self.level.height)
-                surf.blit(patch, (fx + cell[0] * cs, fy + cell[1] * cs))
-        super().draw_tiles(surf, world, off, skip)
+                pits.append((patch, (fx + cell[0] * cs, fy + cell[1] * cs), False, True))
+        return pits + super().tile_blits(world, off, skip)
 
     def draw_exit(self, surf: pg.Surface, center: tuple[float, float], age: float) -> None:
         super().draw_exit(surf, center, age)

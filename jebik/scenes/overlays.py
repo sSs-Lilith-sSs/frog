@@ -7,7 +7,7 @@ import pygame as pg
 
 from .. import config, i18n
 from ..art.chars import frog_sprite
-from ..art.common import draw_text, fit_size, star_sprite, text_surface
+from ..art.common import draw_text, fit_size, shade_layer, star_sprite, text_surface
 from ..ui.focus import FocusGroup
 from ..ui.widgets import Button
 from .base import Scene
@@ -30,8 +30,7 @@ class Overlay(Scene):
         self.focus = FocusGroup(on_move=lambda: app.audio.play("tick"))
         self.panel = pg.Rect(0, 0, *self.panel_size)
         self.panel.center = (W // 2, H // 2 + 40)
-        self.dim = pg.Surface((W, H), pg.SRCALPHA)
-        self.dim.fill(config.C_DIM)
+        self.dim = shade_layer((W, H), config.C_DIM)
 
     def column(self, items, top: int, w: int = 460, h: int = 80, step: int = 96) -> list[Button]:
         out = []

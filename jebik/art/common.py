@@ -33,6 +33,16 @@ def blur(a: np.ndarray, k: int) -> np.ndarray:
     return a
 
 
+def shade_layer(size: tuple[int, int], rgba: tuple[int, int, int, int]) -> pg.Surface:
+    """A uniform translucent overlay (dim / veil). Opaque colour + surface alpha
+    instead of per-pixel alpha: same look, but ~10x faster to blit full-screen
+    in the browser build (WebAssembly has no SIMD alpha blitters)."""
+    layer = pg.Surface(size)
+    layer.fill(rgba[:3])
+    layer.set_alpha(rgba[3])
+    return layer
+
+
 @contextmanager
 def clipped(surf: pg.Surface, rect: pg.Rect | None):
     """Draw inside ``rect`` only (intersected with the current clip); None = as is."""

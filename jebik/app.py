@@ -7,7 +7,7 @@ import time
 
 import pygame as pg
 
-from . import config, i18n, save
+from . import config, i18n, paths, save
 from .audio import Audio
 from .paths import resource_path
 from .game.rules import EZZZ
@@ -84,8 +84,8 @@ class App:
 
     def set_fullscreen(self, on: bool) -> None:
         self.settings["fullscreen"] = on
-        if os.environ.get("SDL_VIDEODRIVER") == "dummy":
-            return
+        if os.environ.get("SDL_VIDEODRIVER") == "dummy" or paths.is_web():
+            return                        # the browser page is the "window" (no toggle)
         try:
             if self.is_fullscreen() != on:
                 pg.display.toggle_fullscreen()

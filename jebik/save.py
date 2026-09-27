@@ -3,7 +3,9 @@
 Stored at ``~/.jebik/save.json`` (Windows: ``%APPDATA%\\jebik\\save.json`` unless an
 old ``~/.jebik/save.json`` exists; ``$JEBIK_SAVE_DIR/save.json`` overrides). Loading
 never raises: a missing file gives defaults, a corrupt one is moved aside to
-``save.json.corrupt`` and defaults are used.
+``save.json.corrupt`` and defaults are used. In the browser build (pygbag) the
+same JSON lives in ``localStorage`` (:mod:`jebik.web`) unless an explicit
+path is given.
 """
 from __future__ import annotations
 
@@ -15,7 +17,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from . import config, paths
+from . import config, paths, web
 
 SAVE_VERSION = 2
 MAX_NAME_LEN = 16
@@ -201,6 +203,8 @@ class SaveData:
         }
 
     def save(self) -> bool:
+        if self.path is None and paths.is_web():
+            return web.write(json.dumps(self.to_json()))     # ASCII: see jebik.web
         path = self.path or save_path()
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -246,6 +250,8 @@ def _clean_settings(raw: Any) -> dict[str, Any]:
 
 
 def load(path: Path | None = None) -> SaveData:
+    if path is None and paths.is_web():
+        return _load_web()
     path = path or save_path()
     data = SaveData(path=path)
     if not path.exists():
@@ -260,6 +266,28 @@ def load(path: Path | None = None) -> SaveData:
         except OSError:
             pass
         return data
+    return _fill(data, raw)
+
+
+def _load_web() -> SaveData:
+    """Browser build: the save JSON from ``localStorage`` (defaults if absent or
+    corrupt; a corrupt one is kept under ``<key>.corrupt``)."""
+    data = SaveData(path=None)
+    text = web.read()
+    if not text:
+        return data
+    try:
+        raw = json.loads(text)
+        if not isinstance(raw, dict):
+            raise ValueError("save root is not an object")
+    except ValueError:
+        web.write(text, web.KEY + ".corrupt")
+        web.remove()
+        return data
+    return _fill(data, raw)
+
+
+def _fill(data: SaveData, raw: dict[str, Any]) -> SaveData:
     data.settings = _clean_settings(raw.get("settings"))
     profiles_raw = raw.get("profiles", [])
     if isinstance(profiles_raw, list):

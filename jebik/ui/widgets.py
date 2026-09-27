@@ -10,7 +10,7 @@ from typing import Callable, Sequence
 
 import pygame as pg
 
-from .. import config
+from .. import config, paths, web
 from ..art.common import (draw_text, fit_size, lock_sprite, rounded_panel,
                           triangle_sprite)
 
@@ -328,10 +328,11 @@ class Toggle(Row):
 
 class TextInput(Widget):
     def __init__(self, rect, placeholder: Label = "", max_len: int = 16,
-                 on_submit: Callable[[str], None] | None = None):
+                 on_submit: Callable[[str], None] | None = None, prompt: Label = ""):
         super().__init__(rect)
         self.text = ""
         self.placeholder = placeholder
+        self.prompt = prompt            # question of the browser's text dialog
         self.max_len = max_len
         self.on_submit = on_submit
 
@@ -363,10 +364,24 @@ class TextInput(Widget):
 
     def press(self, pos) -> None:
         # a tap on the field asks for the on-screen keyboard (phones, browser)
+        if paths.is_web():
+            self.ask_web()
+            return
         try:
             pg.key.start_text_input()
         except pg.error:
             pass
+
+    def ask_web(self) -> None:
+        """Browser: SDL shows no phone keyboard, so ask with the page's prompt();
+        a non-empty answer is submitted right away."""
+        answer = web.ask_text(_txt(self.prompt or self.placeholder), self.text)
+        if answer is None:
+            return
+        self.text = ""
+        self.handle_text(answer.strip())
+        if self.text and self.on_submit:
+            self.on_submit(self.text)
 
     def release(self, pos) -> None:
         pass

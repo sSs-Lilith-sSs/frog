@@ -180,10 +180,24 @@ class FieldRenderer:
 
     # ------------------------------------------------------------ drawing
     def draw_tiles(self, surf: pg.Surface, world, off: tuple[int, int],
-                   skip: tuple[int, int] | None = None) -> None:
+                   skip: tuple[int, int] | None = None, only_dynamic: bool = False) -> None:
+        """Draw every visible tile (``only_dynamic``: skip the ones a
+        :class:`~jebik.art.tile_cache.TileCache` already composited)."""
+        frame = self.rect.move(off)
+        for img, pos, clip, stable in self.tile_blits(world, off, skip):
+            if only_dynamic and stable:
+                continue
+            # a moving row slides (and wraps) through the frame's sides: keep it inside
+            with clipped(surf, frame if clip else None):
+                surf.blit(img, pos)
+
+    def tile_blits(self, world, off: tuple[int, int], skip: tuple[int, int] | None = None
+                   ) -> list[tuple[pg.Surface, tuple[int, int], bool, bool]]:
+        """``(image, topleft, clip to frame, stable)`` per visible tile, in draw order;
+        *stable* = drawn as is (no hazard / dip / moving-row effect this frame)."""
         tiles = world.tiles
         fx, fy = self.rect.x + off[0], self.rect.y + off[1]
-        frame = self.rect.move(off)
+        out = []
         for cell, tile in sorted(tiles.items(), key=lambda it: (it[0][1], it[0][0])):
             if tile.kind not in (SOLID, OBSTACLE) or cell == skip:
                 continue
@@ -191,6 +205,9 @@ class FieldRenderer:
             if scale <= 0.02 or alpha <= 0:
                 continue
             img = self.tile_image(tile, cell) if tile.kind == SOLID else self.sprite(tile, cell)
+            moving = cell[1] in tiles.rows
+            stable = not (flash or moving or jitter or cell in self.dips
+                          or abs(scale - 1) > 1e-3 or alpha < 255)
             if flash:
                 img = self._flash_of(tile, img)
             if cell in self.dips:
@@ -204,9 +221,9 @@ class FieldRenderer:
                 img.set_alpha(alpha)
             cx, cy = self.tile_center(tile, cell)
             cx += tiles.row_offset(cell[1]) * self.cs + jitter
-            # a moving row slides (and wraps) through the frame's sides: keep it inside
-            with clipped(surf, frame if cell[1] in tiles.rows else None):
-                surf.blit(img, img.get_rect(center=(round(fx + cx), round(fy + cy))))
+            out.append((img, img.get_rect(center=(round(fx + cx), round(fy + cy))).topleft,
+                        moving, stable))
+        return out
 
     def _state_look(self, tile: Tile) -> tuple[float, int, bool, float]:
         """(scale, alpha, flash, x jitter) for the tile's hazard state."""

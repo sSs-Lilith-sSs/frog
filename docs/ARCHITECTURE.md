@@ -229,3 +229,17 @@ from `__file__`** — use `jebik.paths.resource_path("worlds", "<id>", "levels")
   before 2-1 / 3-1, finale + credits after 3-4.
 * Studio splash (`scenes/splash.py`, `art/splash_art.py`): skippable; plays
   `assets/audio/intro_custom.ogg|wav` if present, else the generated fanfare.
+
+## 12. Browser build (pygbag → GitHub Pages)
+
+`tools/build_web.py` stages `web/main.py` + `jebik/` (WAV → OGG, splash layers
+pre-baked by `art/splash_layers.py`), runs pygbag 0.9.3 with `web/jebik.tmpl`
+and writes `build/web/`; `.github/workflows/web.yml` publishes it to `gh-pages`.
+Web-only behaviour is keyed on `jebik.paths.is_web()`: saves in `localStorage`
+(`jebik/web.py`), `.ogg` audio (`paths.audio_file`), text entry via the browser
+`prompt()`, no fullscreen toggle / Quit button, half-resolution splash, and the
+`art/tile_cache.py` composite (backdrop + resting tiles in one opaque blit —
+per-pixel alpha blits are ~40x slower in WebAssembly). A world that overrides
+tile drawing should override `FieldRenderer.tile_blits` (not `draw_tiles`) so the
+cache keeps working; full-screen translucent overlays should use
+`art.common.shade_layer` (surface alpha) rather than a `SRCALPHA` surface.

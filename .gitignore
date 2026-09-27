@@ -17,3 +17,7 @@ screenshots/
 build/
 dist/
 jebik-*.zip
+
+# web build (tools/build_web.py -> build/web, staging in build/web-src)
+build/web/
+build/web-src/

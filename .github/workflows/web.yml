@@ -1,0 +1,69 @@
+# Builds the browser version of «жэбик» with pygbag and publishes it to GitHub
+# Pages (branch gh-pages): https://sss-lilith-sss.github.io/frog/
+# The page loads the WebAssembly runtime (CPython, pygame-ce, numpy) from
+# pygbag's CDN pinned below; the game itself is build/web/jebik.tar.gz.
+name: Web (GitHub Pages)
+
+on:
+  push:
+    branches: ["claude/modest-wright-f7ktq9"]
+    paths:
+      - "jebik/**"
+      - "web/**"
+      - "frog.py"
+      - "requirements.txt"
+      - "tools/build_web.py"
+      - ".github/workflows/web.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write                    # push the gh-pages branch
+
+concurrency:
+  group: web-pages                   # separate from build-windows.yml's "build-<ref>"
+  cancel-in-progress: true
+
+env:
+  PYGBAG_VERSION: "0.9.3"            # keep in sync with tools/build_web.py (PYGBAG_VERSION)
+  SDL_VIDEODRIVER: dummy             # build-time rendering (icons, splash layers)
+  SDL_AUDIODRIVER: dummy
+
+jobs:
+  pages:
+    name: Build web + deploy to gh-pages
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt "pygbag==${PYGBAG_VERSION}" soundfile
+
+      - name: Build with pygbag -> build/web
+        run: python tools/build_web.py --out build/web
+
+      - name: Check the build
+        run: |
+          test -f build/web/index.html
+          test -f build/web/jebik.tar.gz
+          test -f build/web/.nojekyll
+          grep -q "cdn/${PYGBAG_VERSION}/" build/web/index.html
+          ls -la build/web
+
+      - name: Publish to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: build/web
+          publish_branch: gh-pages
+          keep_files: false
+          enable_jekyll: false       # adds .nojekyll
+          force_orphan: true         # no history of old builds on gh-pages
+          commit_message: "web build ${{ github.sha }}"

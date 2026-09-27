@@ -17,6 +17,7 @@ import pygame as pg
 from ..art.chars import fly_sprite, frog_shadow, frog_sprite, small_shadow
 from ..art.common import clipped, disc_sprite
 from ..art.enemy_art import EnemyArt, enemy_art_class
+from ..art import tile_cache
 from ..art.glow import additive_glow
 from ..art.world_art import art_for
 from ..game import frog as fs
@@ -46,6 +47,7 @@ class GameView:
         self.land_strength = 1.0
         self.t = 0.0
         self.grid = self._grid_surface()
+        self.tile_cache = tile_cache.TileCache(self.field_art)
 
     # ------------------------------------------------------------ helpers
     def to_px(self, pos: tuple[float, float]) -> tuple[float, float]:
@@ -95,15 +97,23 @@ class GameView:
     def draw(self, surf: pg.Surface, world: World, effects, show_grid: bool) -> None:
         off = effects.shake_offset()
         ox, oy = off
-        if ox or oy:
-            surf.fill(self.field_art.fill)
-        surf.blit(self.static, off)
         clip = self.field_clip(off)
-        with clipped(surf, clip):            # under the tiles: the pond / pit / abyss floor
-            self._draw_enemies(surf, world, UNDER, off)
-            effects.draw_rings(surf, off)
         exit_cell = world.exit_cell if self.exit_t is not None else None
-        self.field_art.draw_tiles(surf, world, off, skip=exit_cell)
+        comp = None
+        if tile_cache.enabled() and not (ox or oy or effects.rings) and not any(
+                e.layer == UNDER and e.alive for e in world.enemies):
+            comp = self.tile_cache.frame(world, exit_cell)
+        if comp is not None:                 # backdrop + resting tiles in one opaque blit
+            surf.blit(comp, (0, 0))
+            self.field_art.draw_tiles(surf, world, off, skip=exit_cell, only_dynamic=True)
+        else:
+            if ox or oy:
+                surf.fill(self.field_art.fill)
+            surf.blit(self.static, off)
+            with clipped(surf, clip):        # under the tiles: the pond / pit / abyss floor
+                self._draw_enemies(surf, world, UNDER, off)
+                effects.draw_rings(surf, off)
+            self.field_art.draw_tiles(surf, world, off, skip=exit_cell)
         if show_grid:
             surf.blit(self.grid, (self.field.x + ox, self.field.y + oy))
         for enemy in world.enemies:

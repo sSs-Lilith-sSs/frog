@@ -5,6 +5,10 @@ sweep behind the golden monument while the camera slowly pushes in
 (parallax: sky still, city a little, monument most), fade to black, then the
 profile screen. Any key / click / tap skips. Plays ``intro_custom.ogg|wav``
 if the user dropped one into the audio folder, else the generated fanfare.
+
+The browser build draws it at half resolution (``splash_layers.WEB_SCALE``,
+pre-baked layers) and upscales each frame: full-screen additive / alpha blits
+are far slower in WebAssembly.
 """
 from __future__ import annotations
 
@@ -13,8 +17,9 @@ import random
 
 import pygame as pg
 
-from .. import config
+from .. import config, paths
 from ..art import splash_art as art
+from ..art.splash_layers import WEB_SCALE, layers
 from .base import Scene
 
 W, H = config.SCREEN_W, config.SCREEN_H
@@ -36,15 +41,15 @@ class SplashScene(Scene):
     def __init__(self, app, next_scene_factory=None):
         super().__init__(app)
         self.next_factory = next_scene_factory
-        self.sky = art.sky()
-        self.beam = art.beam()
-        self.flare = art.flare()
-        self.city, self.lights, self.city_box = art.city()
-        self.logo, self.logo_rect = art.logo()
-        self.floor = art.floor()
-        self.vignette = art.vignette()
-        self.ground = art.ground_y()
-        self.black = pg.Surface((W, H))
+        lay = layers(WEB_SCALE if paths.is_web() else 1.0)
+        self.k = k = lay.k                  # image scale; coordinates stay full-res
+        self.sky, self.beam, self.flare = lay.sky, lay.beam, lay.flare
+        self.city, self.lights, self.city_box = lay.city, lay.lights, lay.city_box
+        self.logo, self.logo_rect = lay.logo, lay.logo_rect
+        self.floor, self.vignette, self.ground = lay.floor, lay.vignette, lay.ground
+        self.size = (round(W * k), round(H * k))
+        self.buf = pg.Surface(self.size) if k != 1.0 else None
+        self.black = pg.Surface(self.size)
         self.done = False
         self.rng = random.Random(3)
 
@@ -86,6 +91,14 @@ class SplashScene(Scene):
 
     # ------------------------------------------------------------ draw
     def draw(self, surf: pg.Surface) -> None:
+        if self.buf is None:
+            self._draw(surf)
+        else:
+            self._draw(self.buf)
+            pg.transform.scale(self.buf, surf.get_size(), surf)
+
+    def _draw(self, surf: pg.Surface) -> None:
+        k = self.k
         surf.blit(self.sky, (0, 0))
         self._draw_beams(surf, self.zoom(0.35))
         # city layer: rendered at CITY_ZOOM about the screen centre
@@ -94,20 +107,22 @@ class SplashScene(Scene):
         box = self.city_box
         ox = W / 2 + (box.x - W * art.CITY_ZOOM / 2) * f
         oy = H / 2 + (box.y - H * art.CITY_ZOOM / 2) * f
-        city = pg.transform.smoothscale(self.city, (round(box.w * f), round(box.h * f)))
-        surf.blit(city, (round(ox), round(oy)))
+        city = pg.transform.smoothscale(self.city, (round(box.w * f * k), round(box.h * f * k)))
+        surf.blit(city, (round(ox * k), round(oy * k)))
         for i, (lx, ly) in enumerate(self.lights):          # blinking red spire lights
             if (self.time * 1.3 + i * 0.37) % 1.0 < 0.5:
-                pg.draw.circle(surf, (255, 70, 60), (round(ox + lx * f), round(oy + ly * f)), 3)
+                pg.draw.circle(surf, (255, 70, 60), (round((ox + lx * f) * k), round((oy + ly * f) * k)),
+                               max(1, round(3 * k)))
         # monument layer: rect in screen coords at LOGO_ZOOM about the centre
         zl = self.zoom(1.0)
         gy = H / 2 + (self.ground - H / 2) * zl
-        surf.blit(self.floor, (0, round(gy) - 2))
+        surf.blit(self.floor, (0, round(gy * k) - 2))
         f = zl / art.LOGO_ZOOM
         r = self.logo_rect
         logo = self.logo if abs(f - 1) < 1e-3 else pg.transform.smoothscale(
-            self.logo, (round(r.w * f), round(r.h * f)))
-        surf.blit(logo, (round(W / 2 + (r.x - W / 2) * f), round(H / 2 + (r.y - H / 2) * f)))
+            self.logo, (round(r.w * f * k), round(r.h * f * k)))
+        lx, ly = W / 2 + (r.x - W / 2) * f, H / 2 + (r.y - H / 2) * f
+        surf.blit(logo, (round(lx * k), round(ly * k)))
         surf.blit(self.vignette, (0, 0))
         self._draw_fade(surf)
 
@@ -117,6 +132,7 @@ class SplashScene(Scene):
         for i, (fx, base, amp, speed, phase) in enumerate(BEAMS):
             ang = base + amp * math.sin(t * speed + phase)
             src = self._place((fx * W, BEAM_Y), z)
+            src = (src[0] * self.k, src[1] * self.k)
             img = pg.transform.rotate(self.beam, -ang)
             vec = pg.math.Vector2(0, L / 2).rotate(ang)       # centre -> source, rotated
             rect = img.get_rect(center=(src[0] - vec.x, src[1] - vec.y))

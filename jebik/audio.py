@@ -2,7 +2,8 @@
 
 Core effects live in ``assets/audio/sfx_<name>.wav``. World packages ship
 their own in ``jebik/worlds/<id>/audio/<name>.wav`` and play them as
-``audio.play("<id>.<name>")`` — loaded lazily on first use.
+``audio.play("<id>.<name>")`` — loaded lazily on first use. The browser build
+ships ``.ogg`` twins instead (:func:`jebik.paths.audio_file`).
 """
 from __future__ import annotations
 
@@ -39,7 +40,7 @@ class Audio:
             self.enabled = False
             return
         for name in config.SFX_NAMES:
-            path = config.AUDIO_DIR / f"sfx_{name}.wav"
+            path = paths.audio_file(config.AUDIO_DIR / f"sfx_{name}.wav")
             try:
                 self.sounds[name] = pg.mixer.Sound(str(path))
             except (pg.error, FileNotFoundError):
@@ -51,7 +52,7 @@ class Audio:
         track = track or self.settings.get("music_track", "B")
         if not self.enabled or (track == self.track and not force and pg.mixer.music.get_busy()):
             return
-        path = config.AUDIO_DIR / config.MUSIC_FILES.get(track, "music_b.wav")
+        path = paths.audio_file(config.AUDIO_DIR / config.MUSIC_FILES.get(track, "music_b.wav"))
         try:
             pg.mixer.music.load(str(path))
             pg.mixer.music.play(-1, fade_ms=400)
@@ -78,7 +79,7 @@ class Audio:
                 path = folder / name
                 if path.is_file():
                     return path
-        path = config.AUDIO_DIR / config.INTRO_FANFARE
+        path = paths.audio_file(config.AUDIO_DIR / config.INTRO_FANFARE)
         return path if path.is_file() else None
 
     def play_intro(self) -> None:
@@ -127,7 +128,7 @@ class Audio:
         if name in self._missing:
             return None
         world, _, rest = name.partition(".")
-        path = config.WORLDS_DIR / world / "audio" / f"{rest}.wav"
+        path = paths.audio_file(config.WORLDS_DIR / world / "audio" / f"{rest}.wav")
         try:
             snd = pg.mixer.Sound(str(path))
         except (pg.error, FileNotFoundError):

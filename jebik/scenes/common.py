@@ -9,7 +9,7 @@ import pygame as pg
 from .. import config, i18n
 from ..art import backdrops
 from ..art.chars import fly_sprite, frog_front_sprite
-from ..art.common import draw_text, fit_size, rounded_panel, text_surface
+from ..art.common import draw_text, fit_size, rounded_panel, shade_layer, text_surface
 from ..ui.focus import FocusGroup
 from ..ui.widgets import Button
 from .base import Scene
@@ -30,8 +30,7 @@ class MenuBackdrop:
         self.t = 0.0
         self.blink = 0.0
         self.next_blink = 2.5
-        self.veil = pg.Surface((W, H), pg.SRCALPHA)
-        self.veil.fill((255, 255, 255, 70))
+        self.veil = shade_layer((W, H), (255, 255, 255, 70))
 
     def update(self, dt: float) -> None:
         self.t += dt
@@ -109,8 +108,7 @@ class MenuScene(Scene):
         self.over_game = over_game          # opened from the pause menu
         self.opaque = not over_game
         self.focus = FocusGroup(on_move=lambda: app.audio.play("tick"))
-        self._dim = pg.Surface((W, H), pg.SRCALPHA)
-        self._dim.fill((12, 30, 34, 175))
+        self._dim = shade_layer((W, H), (12, 30, 34, 175))
 
     def back_button(self, x: int = 70, y: int = H - 150, w: int = 300) -> Button:
         return Button((x, y, w, 76), lambda: i18n.t("common.back"), self.back, size=36)
